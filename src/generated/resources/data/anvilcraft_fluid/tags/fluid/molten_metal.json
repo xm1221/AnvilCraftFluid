@@ -1,0 +1,14 @@
+{
+  "values": [
+    "anvilcraft_fluid:flowing_molten_iron",
+    "anvilcraft_fluid:molten_iron",
+    "anvilcraft_fluid:flowing_molten_gold",
+    "anvilcraft_fluid:molten_gold",
+    "anvilcraft_fluid:flowing_molten_copper",
+    "anvilcraft_fluid:molten_copper",
+    "anvilcraft_fluid:flowing_molten_tungsten",
+    "anvilcraft_fluid:molten_tungsten",
+    "anvilcraft_fluid:flowing_molten_royal_steel",
+    "anvilcraft_fluid:molten_royal_steel"
+  ]
+}

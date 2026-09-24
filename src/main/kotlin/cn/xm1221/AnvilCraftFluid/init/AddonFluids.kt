@@ -4,6 +4,7 @@ import cn.xm1221.AnvilCraftFluid.AnvilCraftFluid
 import cn.xm1221.AnvilCraftFluid.AnvilCraftFluid.Companion.REGISTRUM
 import cn.xm1221.AnvilCraftFluid.block.AddonCauldronBlock
 import cn.xm1221.AnvilCraftFluid.fluid.AddonFluidSpecs
+import cn.xm1221.AnvilCraftFluid.fluid.FluidFamily
 import cn.xm1221.AnvilCraftFluid.fluid.FluidSpec
 import dev.anvilcraft.lib.v2.registrum.builders.FluidBuilder
 import dev.anvilcraft.lib.v2.registrum.util.entry.BlockEntry
@@ -12,6 +13,7 @@ import net.minecraft.core.cauldron.CauldronInteraction
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.sounds.SoundEvents
 import net.minecraft.tags.BlockTags
+import net.minecraft.tags.TagKey
 import net.minecraft.world.ItemInteractionResult
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
@@ -160,6 +162,9 @@ object AddonFluids {
             .fluidProperties { p ->
                 p.tickRate(spec.tickRate).explosionResistance(100.0f)
             }
+            // 打标签（Registrum 会同时给源流体与流动流体打上）：
+            // 全部熔融流体进 #anvilcraft_fluid:molten，再按族进 #molten_gem / #molten_metal
+            .tag(AddonFluidTags.MOLTEN, familyTag(spec.family))
 
         if (!spec.placeable) builder = builder.noBlock()
 
@@ -199,6 +204,12 @@ object AddonFluids {
                 .forAllStates { ConfiguredModel.builder().modelFile(model).build() }
         }
         .register()
+
+    /** 流体族 → 族标签 */
+    private fun familyTag(family: FluidFamily): TagKey<Fluid> = when (family) {
+        FluidFamily.GEM -> AddonFluidTags.MOLTEN_GEM
+        FluidFamily.METAL -> AddonFluidTags.MOLTEN_METAL
+    }
 
     /**
      * 灰度贴图 + [tint] 染色的 [FluidType]。
