@@ -101,12 +101,16 @@ object AddonFluidSpecs {
     /** 熔融绿宝石 */
     val MOLTEN_EMERALD = FluidSpec("molten_emerald", argb(0xFF2CC46A), FluidFamily.GEM)
 
+    /** 熔融紫水晶（对应原版紫水晶碎片；遇水 → 方解石） */
+    val MOLTEN_AMETHYST = FluidSpec("molten_amethyst", argb(0xFF9A5FD8), FluidFamily.GEM)
+
     val GEMS: List<FluidSpec> = listOf(
         MOLTEN_RUBY,
         MOLTEN_QUARTZ,
         MOLTEN_SAPPHIRE,
         MOLTEN_TOPAZ,
         MOLTEN_EMERALD,
+        MOLTEN_AMETHYST,
     )
 
     // ───────────────────────── 熔融金属（共用 METAL 贴图） ─────────────────────────

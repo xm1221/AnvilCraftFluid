@@ -3,9 +3,11 @@ package cn.xm1221.AnvilCraftFluid.init
 import cn.xm1221.AnvilCraftFluid.AnvilCraftFluid
 import cn.xm1221.AnvilCraftFluid.AnvilCraftFluid.Companion.REGISTRUM
 import cn.xm1221.AnvilCraftFluid.block.AddonCauldronBlock
+import cn.xm1221.AnvilCraftFluid.block.ReactiveLiquidBlock
 import cn.xm1221.AnvilCraftFluid.fluid.AddonFluidSpecs
 import cn.xm1221.AnvilCraftFluid.fluid.FluidFamily
 import cn.xm1221.AnvilCraftFluid.fluid.FluidSpec
+import cn.xm1221.AnvilCraftFluid.fluid.WaterReactions
 import dev.anvilcraft.lib.v2.registrum.builders.FluidBuilder
 import dev.anvilcraft.lib.v2.registrum.util.entry.BlockEntry
 import dev.anvilcraft.lib.v2.registrum.util.entry.FluidEntry
@@ -88,7 +90,12 @@ object AddonFluids {
      * （[AnvilCraftFluid] 的 `init` 块已调用）。
      */
     fun register() {
-        AnvilCraftFluid.LOGGER.debug("Registered {} AnvilCraft fluid(s)", REGISTERED.size)
+        val reactive = REGISTERED.count { WaterReactions.productOf(it.spec.name) != null }
+        AnvilCraftFluid.LOGGER.debug(
+            "Registered {} AnvilCraft fluid(s), {} of them water-reactive (custom ReactiveLiquidBlock)",
+            REGISTERED.size,
+            reactive,
+        )
     }
 
     /** 按名字查已注册流体（供事件与配方代码使用） */
@@ -166,7 +173,19 @@ object AddonFluids {
             // 全部熔融流体进 #anvilcraft_fluid:molten，再按族进 #molten_gem / #molten_metal
             .tag(AddonFluidTags.MOLTEN, familyTag(spec.family))
 
-        if (!spec.placeable) builder = builder.noBlock()
+        if (!spec.placeable) {
+            builder = builder.noBlock()
+        } else {
+            // 在水反应表里的流体用自定义液体方块：碰水凝固（六向检测，见 ReactiveLiquidBlock）
+            val waterProduct = WaterReactions.productOf(spec.name)
+            if (waterProduct != null) {
+                // ⚠️ 与 bucket 同理：自己调用 block() 后 defaultBlock 变 false，
+                //    FluidBuilder.register() 不再自动注册它，必须自己 .register()
+                builder.block { fluid, properties ->
+                    ReactiveLiquidBlock(fluid, properties, waterProduct)
+                }.register()
+            }
+        }
 
         // 桶用**双层模型**（手写在 src/main/resources，父级 anvilcraft_fluid:item/bucket_template）：
         //   layer0 = `item/bucket`（灰铁桶身，全模组共用，不染色）
