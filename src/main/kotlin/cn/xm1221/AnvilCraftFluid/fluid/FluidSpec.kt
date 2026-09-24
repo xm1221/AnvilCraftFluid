@@ -145,14 +145,14 @@ object AddonFluidSpecs {
         "molten_copper", argb(0xFFE07A3F), FluidFamily.METAL, lightLevel = 11,
     )
 
-    /** 熔融钨（高温金属，颜色偏冷灰） */
+    /** 熔融钨 */
     val MOLTEN_TUNGSTEN = FluidSpec(
         "molten_tungsten", argb(0xFF9AA6B2), FluidFamily.METAL, temperature = 3400, lightLevel = 14,
     )
 
-    /** 熔融皇家钢（宝石魔力浸染的铁） */
+    /** 熔融皇家钢 */
     val MOLTEN_ROYAL_STEEL = FluidSpec(
-        "molten_royal_steel", argb(0xFFD0A6E8), FluidFamily.METAL, temperature = 1600, lightLevel = 13,
+        "molten_royal_steel", argb(63766), FluidFamily.METAL, temperature = 1600, lightLevel = 13,
     )
 
     val METALS: List<FluidSpec> = listOf(

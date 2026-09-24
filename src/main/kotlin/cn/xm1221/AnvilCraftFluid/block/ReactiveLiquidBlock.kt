@@ -1,9 +1,8 @@
 package cn.xm1221.AnvilCraftFluid.block
 
-import cn.xm1221.AnvilCraftFluid.fluid.WaterReactions
+import cn.xm1221.AnvilCraftFluid.fluid.WaterReaction
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
-import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.tags.FluidTags
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.Block
@@ -44,13 +43,11 @@ import net.neoforged.neoforge.event.EventHooks
 class ReactiveLiquidBlock(
     fluid: FlowingFluid,
     properties: Properties,
+    private val reaction: WaterReaction,
 ) : LiquidBlock(fluid, properties) {
 
     // 不覆写 codec()：沿用 LiquidBlock 的 CODEC。
     // 我们的液体方块只在运行时由流体生成，不参与数据包里的方块定义。
-
-    /** 本方块对应哪个 [cn.xm1221.AnvilCraftFluid.fluid.FluidSpec.name]（≈ 注册名去掉命名空间） */
-    private val fluidName: String by lazy { BuiltInRegistries.FLUID.getKey(this.fluid).path }
 
     override fun onPlace(
         state: BlockState,
@@ -83,13 +80,15 @@ class ReactiveLiquidBlock(
         if (level.getBlockState(pos).block !== this) return
         if (!isTouchingWater(level, pos)) return
 
-        // 关键：源方块与流动流体的产物可以不同
+        // 关键：区分源方块与流动流体。
+        // LiquidBlock.LEVEL 是 0~15，其中 0 = 源方块、1~7 = 流动、8 = 下落，
+        // 而 getFluidState(state) 是按 LEVEL 取 stateCache，所以 isSource() 恰好只对 LEVEL 0 为真。
         val state = level.getFluidState(pos)
         val product = if (state.isSource) {
-            WaterReactions.sourceProduct(fluidName)
+            reaction.sourceProduct()
         } else {
-            WaterReactions.flowingProduct(fluidName)
-        } ?: return
+            reaction.flowingProduct?.invoke() ?: return
+        }
 
         level.setBlockAndUpdate(
             pos,

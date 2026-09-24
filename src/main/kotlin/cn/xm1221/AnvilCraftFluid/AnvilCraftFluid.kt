@@ -4,6 +4,7 @@ import cn.xm1221.AnvilCraftFluid.data.AddonDatagen
 import cn.xm1221.AnvilCraftFluid.event.CauldronFluidContentRegistry
 import cn.xm1221.AnvilCraftFluid.event.CauldronInteractions
 import cn.xm1221.AnvilCraftFluid.event.CauldronItemReactions
+import cn.xm1221.AnvilCraftFluid.event.ReactionTableCheck
 import cn.xm1221.AnvilCraftFluid.init.AddonFluids
 import cn.xm1221.AnvilCraftFluid.init.AddonItemGroups
 import com.mojang.logging.LogUtils
@@ -51,6 +52,11 @@ class AnvilCraftFluid(modEventBus: IEventBus, modContainer: ModContainer) {
         // 桶 → 我们的炼药锅的交互条目（要等注册表填充后才能拿到桶物品实例）
         modEventBus.addListener<FMLCommonSetupEvent> { event ->
             CauldronInteractions.onCommonSetup(event)
+        }
+
+        // 启动自检：把水反应表打进日志（诊断"反应不生效"时直接看这里）
+        modEventBus.addListener<FMLCommonSetupEvent> { event ->
+            ReactionTableCheck.onCommonSetup(event)
         }
 
         // 大型炼药锅上的「流体 × 物品」反应（浮霜洗附魔 / 熔融金洗诅咒 / 余烬加速修复）。

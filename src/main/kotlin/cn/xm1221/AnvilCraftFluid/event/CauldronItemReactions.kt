@@ -65,9 +65,28 @@ object CauldronItemReactions {
         }
     }
 
+    /**
+     * 首次收到事件时打一条日志，用来确认**钩子本身活着**。
+     *
+     * 这三个行为只在世界里发生，没有别的可观测证据；用户实机反馈"行为不正常"时，
+     * 先看日志里有没有这一行，就能区分"钩子没挂上"和"钩子挂了但条件没命中"。
+     */
+    private var hookAliveLogged = false
+
     @SubscribeEvent
     fun onLargeCauldronTick(event: LargeCauldronEvent.ServerTick) {
         val fluids = event.cauldron.fluids
+
+        if (!hookAliveLogged) {
+            hookAliveLogged = true
+            AnvilCraftFluid.LOGGER.debug(
+                "LargeCauldronEvent.ServerTick hook alive — fluid×item reactions are active " +
+                    "(cauldron at {}, {} mB stored)",
+                event.cauldron.blockPos,
+                fluids.totalAmount,
+            )
+        }
+
         // 空锅直接跳过，省掉后面所有查找
         if (fluids.totalAmount <= 0) return
 
@@ -116,6 +135,14 @@ object CauldronItemReactions {
             }
             if (repaired > 0) {
                 budget -= fluids.consume(ember, repaired * perDurability)
+                // 修满时打一条（每 tick 修复都会走到上面，打日志会刷屏）
+                if (input.getStackInSlot(slot).damageValue == 0) {
+                    AnvilCraftFluid.LOGGER.debug(
+                        "Ember reforge: repaired item in slot {} back to full, {} mB ember fluid left",
+                        slot,
+                        budget,
+                    )
+                }
             }
         }
     }
@@ -150,6 +177,12 @@ object CauldronItemReactions {
             // 洗下来的诅咒被流体吸收：等量熔融金变成诅咒金液体
             fluids.fill(FluidStack(cursedGold, cost), IFluidHandler.FluidAction.EXECUTE)
             turnEmptyEnchantedBookIntoBook(input, slot)
+            AnvilCraftFluid.LOGGER.debug(
+                "Melted-gold wash: removed {} curse enchantment(s) in slot {}, consumed {} mB molten gold",
+                removed,
+                slot,
+                cost,
+            )
         }
     }
 
@@ -184,6 +217,14 @@ object CauldronItemReactions {
             // 洗下来的附魔按同量变成液态附魔
             fluids.fill(FluidStack(liquidEnchantment, cost), IFluidHandler.FluidAction.EXECUTE)
             turnEmptyEnchantedBookIntoBook(input, slot)
+            AnvilCraftFluid.LOGGER.debug(
+                "Frost wash: removed {} enchantment(s) in slot {}, consumed {} mB frost fluid " +
+                    "and produced {} mB liquid enchantment",
+                removed,
+                slot,
+                cost,
+                cost,
+            )
         }
     }
 

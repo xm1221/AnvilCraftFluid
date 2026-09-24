@@ -46,10 +46,10 @@ object WaterReactions {
      * | 石英 | 闪长岩 | 闪长岩 |
      * | 蓝宝石 / 黄玉 / 绿宝石 | 安山岩 | 安山岩 |
      * | 紫水晶 | 方解石 | 方解石 |
-     * | 铁 | **铁矿** | 石头 |
-     * | 金 | **金矿** | 石头 |
-     * | 铜 | **铜矿** | 石头 |
-     * | 钨 | **深层钨矿石**（上游只有这一种钨矿） | 石头 |
+     * | 铁 | **铁矿** | 不反应 |
+     * | 金 | **金矿** | 不反应 |
+     * | 铜 | **铜矿** | 不反应 |
+     * | 钨 | **深层钨矿石**（上游只有这一种钨矿） | 不反应 |
      */
     val TABLE: Map<String, WaterReaction> = mapOf(
         // ── 熔融宝石：源与流动一致（保留现状）──
@@ -60,15 +60,24 @@ object WaterReactions {
         "molten_emerald" to WaterReaction({ Blocks.ANDESITE }, { Blocks.ANDESITE }),
         "molten_amethyst" to WaterReaction({ Blocks.CALCITE }, { Blocks.CALCITE }),
 
-        // ── 熔融金属：源 → 对应矿石；流动 → 冷却成石头 ──
-        "molten_iron" to WaterReaction({ Blocks.IRON_ORE }, { Blocks.STONE }),
-        "molten_gold" to WaterReaction({ Blocks.GOLD_ORE }, { Blocks.STONE }),
-        "molten_copper" to WaterReaction({ Blocks.COPPER_ORE }, { Blocks.STONE }),
-        "molten_tungsten" to WaterReaction({ ModBlocks.DEEPSLATE_TUNGSTEN_ORE.get() }, { Blocks.STONE }),
+        // ── 熔融金属：只有**源方块**遇水成矿；流动的熔融金属不反应（用户拍板）──
+        "molten_iron" to WaterReaction({ Blocks.IRON_ORE }, null),
+        "molten_gold" to WaterReaction({ Blocks.GOLD_ORE }, null),
+        "molten_copper" to WaterReaction({ Blocks.COPPER_ORE }, null),
+        "molten_tungsten" to WaterReaction({ ModBlocks.DEEPSLATE_TUNGSTEN_ORE.get() }, null),
     )
 
     /** 该流体是否会遇水凝固（纯查表，mod 构造阶段可安全调用） */
     fun isReactive(fluidName: String): Boolean = TABLE.containsKey(fluidName)
+
+    /**
+     * 取该流体的反应（含产物工厂，构造阶段可安全持有——工厂要到真正反应时才被调用）。
+     *
+     * ⚠️ **必须用 [FluidSpec.name] 来查**，不要拿液体方块里的 `fluid` 反推名字：
+     * `Registrum` 建液体方块时传进去的是**流动流体**（`flowing_<name>`），
+     * 用它查表会全部落空（曾经因此让所有水反应一起失效）。
+     */
+    fun reactionFor(fluidName: String): WaterReaction? = TABLE[fluidName]
 
     /** 源方块遇水的产物；null 表示不反应 */
     fun sourceProduct(fluidName: String): Block? = TABLE[fluidName]?.sourceProduct?.invoke()

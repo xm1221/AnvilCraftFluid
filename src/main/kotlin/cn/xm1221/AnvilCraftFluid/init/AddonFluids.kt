@@ -9,6 +9,7 @@ import cn.xm1221.AnvilCraftFluid.fluid.FluidFamily
 import cn.xm1221.AnvilCraftFluid.fluid.FluidSpec
 import cn.xm1221.AnvilCraftFluid.fluid.WaterReactions
 import dev.anvilcraft.lib.v2.registrum.builders.FluidBuilder
+import dev.anvilcraft.lib.v2.registrum.providers.RegistrumBlockstateProvider
 import dev.anvilcraft.lib.v2.registrum.util.entry.BlockEntry
 import dev.anvilcraft.lib.v2.registrum.util.entry.FluidEntry
 import net.minecraft.core.cauldron.CauldronInteraction
@@ -179,23 +180,30 @@ object AddonFluids {
 
         if (!spec.placeable) {
             builder = builder.noBlock()
-        } else if (WaterReactions.isReactive(spec.name)) {
-            // 在水反应表里的流体用自定义液体方块：碰水凝固，且区分源/流动（见 ReactiveLiquidBlock）
+        } else if (WaterReactions.reactionFor(spec.name) != null) {
+            // 在水反应表里的流体用自定义液体方块：碰水凝固，且区分源/流动（见 ReactiveLiquidBlock）。
+            // ⚠️ 反应对象按 **spec.name** 查好再传进去——不要让它拿液体方块里的 fluid 反推名字，
+            //    那拿到的是 `flowing_<name>`，会让所有反应失效。
             // ⚠️ 与 bucket 同理：自己调用 block() 后 defaultBlock 变 false，
             //    FluidBuilder.register() 不再自动注册它，必须自己 .register()
+            val reaction = WaterReactions.reactionFor(spec.name)!!
             builder.block { fluid, properties ->
-                ReactiveLiquidBlock(fluid, properties)
+                ReactiveLiquidBlock(fluid, properties, reaction)
             }.register()
         }
 
-        // 桶用**双层模型**（手写在 src/main/resources，父级 anvilcraft_fluid:item/bucket_template）：
-        //   layer0 = `item/bucket`（灰铁桶身，全模组共用，不染色）
-        //   layer1 = `item/bucket_fluid`（桶内液体，灰度，被 spec.tint 染色）
-        // 所以这里把 Registrum 默认生成的单层模型替换掉。
+        // 桶用**双层模型**：layer0 灰铁桶身（不染色）+ layer1 桶内液体（染 spec.tint）。
+        // 共用一个手写模板 anvilcraft_fluid:item/bucket_template，
+        // 每种流体的模型**由 datagen 生成**而不是手写 JSON——
+        // 手写的话新增流体时很容易漏文件（曾经就漏了 4 个，表现为"物品贴图缺少"）。
         // ⚠️ 自己调用 bucket() 之后 `defaultBucket` 会变成 false，
         //    FluidBuilder.register() 就不再自动注册它了，必须自己 `.register()`，
         //    否则 Registrum 会报 "Found unused register callbacks"。
-        builder.bucket().model { _, _ -> }.register()
+        builder.bucket()
+            .model { ctx, provider ->
+                provider.withExistingParent(ctx.name, AnvilCraftFluid.of("item/bucket_template"))
+            }
+            .register()
 
         return builder.register()
     }
@@ -216,6 +224,18 @@ object AddonFluids {
         // 不写这条的话 Registrum 会生成 name = minecraft:air 的空战利品表。
         .loot { tables, block -> tables.dropOther(block, Items.CAULDRON) }
         .blockstate { ctx, provider ->
+            // 锅模型**由 datagen 生成**（不再手写 JSON）：父级是原版 template_cauldron_full，
+            // content 面指向该族共用的灰度静止贴图，配方块颜色处理器上色。
+            // 好处：新增流体时不会漏文件（曾经手写漏了 4 个桶模型）。
+            provider.models().getBuilder("${spec.name}_cauldron")
+                .parent(cauldronTemplate(provider))
+                .texture("bottom", vanillaTexture("block/cauldron_bottom"))
+                .texture("content", AnvilCraftFluid.of("block/${spec.family.textureBase}_still"))
+                .texture("inside", vanillaTexture("block/cauldron_inner"))
+                .texture("particle", vanillaTexture("block/cauldron_side"))
+                .texture("side", vanillaTexture("block/cauldron_side"))
+                .texture("top", vanillaTexture("block/cauldron_top"))
+
             val model = ModelFile.ExistingModelFile(
                 AnvilCraftFluid.of("block/${spec.name}_cauldron"),
                 provider.models().existingFileHelper,
@@ -224,6 +244,17 @@ object AddonFluids {
                 .forAllStates { ConfiguredModel.builder().modelFile(model).build() }
         }
         .register()
+
+    /** 原版方块模型引用 */
+    private fun cauldronTemplate(provider: RegistrumBlockstateProvider): ModelFile =
+        ModelFile.ExistingModelFile(
+            ResourceLocation.withDefaultNamespace("block/template_cauldron_full"),
+            provider.models().existingFileHelper,
+        )
+
+    /** 原版贴图引用 */
+    private fun vanillaTexture(path: String): ResourceLocation =
+        ResourceLocation.withDefaultNamespace(path)
 
     /** 流体族 → 该进的标签列表：熔融族进 `#molten` + 族标签；功能流体只进 `#special` */
     private fun tagsFor(family: FluidFamily): List<TagKey<Fluid>> = buildList {
