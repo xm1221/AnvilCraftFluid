@@ -35,14 +35,14 @@ object AddonFluidColors {
         }
     }
 
-    /** 桶染色 */
+    /** 桶染色：只染 layer1（桶内液体），layer0 是灰铁桶身不染色 */
     @SubscribeEvent
     @JvmStatic
     fun onRegisterItemColors(event: RegisterColorHandlersEvent.Item) {
         AddonFluids.REGISTERED.forEach { registered ->
             val bucket = registered.bucket ?: return@forEach
             event.register(
-                { _, tintIndex -> if (tintIndex == 0) registered.spec.tint else -1 },
+                { _, tintIndex -> if (tintIndex == 1) registered.spec.tint else -1 },
                 bucket,
             )
         }

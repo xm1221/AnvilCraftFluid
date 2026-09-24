@@ -142,6 +142,9 @@ object AddonFluids {
 
         var builder = REGISTRUM
             .fluid(spec.name, stillTexture, flowingTexture, typeFactory)
+            // 显式给出源流体：FluidBuilder.bucket() 要求 source 已经存在
+            // （create() 里的 defaultSource 要等到 register() 才真正建源流体）
+            .source { properties -> BaseFlowingFluid.Source(properties) }
             .properties { p ->
                 p.canSwim(false)
                     .canDrown(false)
@@ -158,6 +161,15 @@ object AddonFluids {
             }
 
         if (!spec.placeable) builder = builder.noBlock()
+
+        // 桶用**双层模型**（手写在 src/main/resources）：
+        //   layer0 = `<name>_bucket`（灰铁桶身，不染色）
+        //   layer1 = `<name>_bucket_fluid`（桶内液体，被 spec.tint 染色）
+        // 所以这里把 Registrum 默认生成的单层模型替换掉。
+        // ⚠️ 自己调用 bucket() 之后 `defaultBucket` 会变成 false，
+        //    FluidBuilder.register() 就不再自动注册它了，必须自己 `.register()`，
+        //    否则 Registrum 会报 "Found unused register callbacks"。
+        builder.bucket().model { _, _ -> }.register()
 
         return builder.register()
     }

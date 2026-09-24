@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "anvilcraft_fluid:item/molten_topaz_bucket",
+    "layer1": "anvilcraft_fluid:item/molten_topaz_bucket_fluid"
+  }
+}
