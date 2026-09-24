@@ -57,6 +57,7 @@
   "gui.anvilcraft_fluid.cauldron_reaction.frost.1": "每条按 2^(等级-1) mB 产出液态魔咒",
   "gui.anvilcraft_fluid.cauldron_reaction.curse.0": "洗掉物品上的诅咒附魔",
   "gui.anvilcraft_fluid.cauldron_reaction.curse.1": "每条按同量产出诅咒金液体",
+  "gui.anvilcraft_fluid.cauldron_reaction.anvil_strike": "在大型炼药锅里用铁砧砸下去触发",
   "gui.anvilcraft_fluid.info.ember_fluid": "物品站在余烬液体里会被重铸修复：比岩浆快，且不消耗液体本身",
   "anvilcraft_fluid.configuration.section.anvilcraft.fluid.common.toml": "铁砧工艺：流体扩展 通用配置",
   "anvilcraft_fluid.configuration.section.anvilcraft.fluid.common.toml.title": "铁砧工艺：流体扩展 通用配置",

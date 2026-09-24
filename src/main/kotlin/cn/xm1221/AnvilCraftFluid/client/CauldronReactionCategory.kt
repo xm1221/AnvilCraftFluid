@@ -81,8 +81,9 @@ class CauldronReactionCategory(guiHelper: IGuiHelper) : AbstractLiquidReactionCa
                 position.y + SLOT_OFFSET,
             ).addItemStacks(ingredient.items.toList())
         }
-        fluidInputs.forEachIndexed { index, fluid ->
+        fluidInputs.forEachIndexed { index, candidates ->
             val position = inputPosition(inputCount, itemInputs.size + index)
+            // 一组 = 一个槽；组里多流体表示"任一即可"（标签），JEI 会自己轮播
             JeiFluidUtil.addFluidSlot(
                 builder,
                 RecipeIngredientRole.INPUT,
@@ -92,7 +93,7 @@ class CauldronReactionCategory(guiHelper: IGuiHelper) : AbstractLiquidReactionCa
                 SLOT_INNER,
                 FLUID_CAPACITY,
                 true,
-                listOf(fluid),
+                candidates,
             )
         }
 

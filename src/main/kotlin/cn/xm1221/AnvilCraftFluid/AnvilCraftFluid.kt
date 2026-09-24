@@ -7,6 +7,7 @@ import cn.xm1221.AnvilCraftFluid.event.CauldronItemReactions
 import cn.xm1221.AnvilCraftFluid.event.ReactionTableCheck
 import cn.xm1221.AnvilCraftFluid.init.AddonFluids
 import cn.xm1221.AnvilCraftFluid.init.AddonItemGroups
+import cn.xm1221.AnvilCraftFluid.recipe.AddonRecipeTypes
 import com.mojang.logging.LogUtils
 import dev.anvilcraft.lib.v2.config.ConfigManager
 import dev.anvilcraft.lib.v2.registrum.Registrum
@@ -39,6 +40,10 @@ class AnvilCraftFluid(modEventBus: IEventBus, modContainer: ModContainer) {
         // Registrum 在创建物品 builder 时会读一次 defaultCreativeModeTab，
         // 晚设的话桶只会落到原版搜索页（见 AddonItemGroups 的注释）。
         AddonItemGroups.register(modEventBus)
+
+        // 本模组自己的配方类型（多流体 + 物品 → 物品/流体，见 recipe/MultiFluidMixingRecipe.kt）。
+        // 必须在配方管理器加载配方之前注册，所以放在最前面。
+        AddonRecipeTypes.register(modEventBus)
 
         // 流体 + 桶 + 液体方块 + 炼药锅
         AddonFluids.register()

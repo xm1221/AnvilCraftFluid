@@ -1,12 +1,14 @@
 package cn.xm1221.AnvilCraftFluid.client
 
 import cn.xm1221.AnvilCraftFluid.AnvilCraftFluid
+import cn.xm1221.AnvilCraftFluid.recipe.AddonRecipeTypes
 import dev.dubhe.anvilcraft.init.block.ModBlocks
 import mezz.jei.api.IModPlugin
 import mezz.jei.api.JeiPlugin
 import mezz.jei.api.registration.IRecipeCatalystRegistration
 import mezz.jei.api.registration.IRecipeCategoryRegistration
 import mezz.jei.api.registration.IRecipeRegistration
+import net.minecraft.client.Minecraft
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.ItemStack
 
@@ -41,7 +43,17 @@ class AddonJeiPlugin : IModPlugin {
         )
     }
     override fun registerRecipes(registration: IRecipeRegistration) {
-        registration.addRecipes(CauldronReactionCategory.TYPE, AddonJeiEntries.pseudoRecipes())
+        // 1) 代码反应的伪配方（浮霜洗附魔 / 熔融金洗诅咒）
+        // 2) 自定义类型 anvilcraft_fluid:multi_fluid_mixing 的真实配方（从配方管理器读出来转成展示用）
+        val fromManager = Minecraft.getInstance().level?.recipeManager
+            ?.getAllRecipesFor(AddonRecipeTypes.MULTI_FLUID_MIXING_TYPE.get())
+            ?.map(AddonJeiEntries::displayOf)
+            .orEmpty()
+
+        registration.addRecipes(
+            CauldronReactionCategory.TYPE,
+            AddonJeiEntries.pseudoRecipes() + fromManager,
+        )
 
         // 余烬液体不是配方行为（物品站在液体里就被修），用信息页说明
         AddonJeiEntries.emberInfoStack()?.let { stack ->

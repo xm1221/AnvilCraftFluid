@@ -3,6 +3,13 @@ package cn.xm1221.AnvilCraftFluid.data.recipe
 import cn.xm1221.AnvilCraftFluid.AnvilCraftFluid
 import cn.xm1221.AnvilCraftFluid.init.AddonFluids
 import dev.anvilcraft.lib.v2.registrum.providers.RegistrumRecipeProvider
+import cn.xm1221.AnvilCraftFluid.init.AddonFluidTags
+import cn.xm1221.AnvilCraftFluid.recipe.FluidRequirement
+import cn.xm1221.AnvilCraftFluid.recipe.MultiFluidMixingRecipe
+import dev.anvilcraft.lib.v2.util.predicate.ChanceItemStack
+import dev.anvilcraft.lib.v2.util.predicate.ItemIngredientPredicate
+import dev.dubhe.anvilcraft.recipe.component.HasCauldronSimple
+import net.neoforged.neoforge.fluids.FluidStack
 import dev.dubhe.anvilcraft.init.block.ModBlocks
 import dev.dubhe.anvilcraft.recipe.FluidMixingRecipe
 import dev.dubhe.anvilcraft.recipe.anvil.wrap.SolidLiquidRecipe
@@ -50,7 +57,91 @@ object AddonRecipeHandler {
         meltingRecipes(provider)
         timeWarpRecipes(provider)
         fluidMixingRecipes(provider)
+        multiFluidMixingRecipes(provider)
         solidLiquidRecipes(provider)
+    }
+
+    // ─────────────── 自定义类型：多流体 + 物品 → 物品/流体 ───────────────
+
+    /**
+     * 这些配方用**本模组自己的配方类型** `anvilcraft_fluid:multi_fluid_mixing`
+     * （见 [cn.xm1221.AnvilCraftFluid.recipe.MultiFluidMixingRecipe]），
+     * 因为上游现成类型都表达不了"两种流体"：
+     * 锅+物品类只能带一种锅里流体，`fluid_mixing` 又没有物品槽。
+     *
+     * - **熔融皇家钢**：任意熔融宝石（`#molten_gem` 标签）+ 钻石 + 熔融铁 → 熔融皇家钢
+     * - **矿石**：熔融红宝石 + 熔融金属 → 对应**深层**矿石；
+     *   熔融蓝宝石 + 熔融金属 → 对应**普通**矿石
+     *   （⚠️ AnvilCraft 的金属**只有深层矿石**，没有普通矿石版本，
+     *    所以熔融钨只有深层那一侧；原版铁/金/铜两种都有）
+     */
+    private fun multiFluidMixingRecipes(provider: RegistrumRecipeProvider) {
+        val iron = AddonFluids.byName("molten_iron") ?: return
+        val ruby = AddonFluids.byName("molten_ruby") ?: return
+        val sapphire = AddonFluids.byName("molten_sapphire") ?: return
+
+        // 任意熔融宝石 + 钻石 + 熔融铁 → 熔融皇家钢
+        AddonFluids.byName("molten_royal_steel")?.let { royalSteel ->
+            multiFluid(
+                provider,
+                "multi_fluid_mixing/molten_royal_steel",
+                items = listOf(ItemIngredientPredicate.Builder.item().of(Items.DIAMOND).build()),
+                results = emptyList(),
+                cauldron = HasCauldronSimple.fluid(iron.source).consume(BUCKET).build(),
+                extra = listOf(FluidRequirement.of(AddonFluidTags.MOLTEN_GEM, BUCKET)),
+                fluidResults = listOf(FluidStack(royalSteel.source, BUCKET)),
+            )
+        }
+
+        // 熔融宝石 + 熔融金属 → 矿石
+        val ores = listOf(
+            Triple("molten_iron", Blocks.DEEPSLATE_IRON_ORE, Blocks.IRON_ORE),
+            Triple("molten_gold", Blocks.DEEPSLATE_GOLD_ORE, Blocks.GOLD_ORE),
+            Triple("molten_copper", Blocks.DEEPSLATE_COPPER_ORE, Blocks.COPPER_ORE),
+            Triple("molten_tungsten", ModBlocks.DEEPSLATE_TUNGSTEN_ORE.get(), null),
+        )
+        for ((metalName, deepslate, normal) in ores) {
+            val metal = AddonFluids.byName(metalName) ?: continue
+
+            multiFluid(
+                provider,
+                "multi_fluid_mixing/deepslate_ore/$metalName",
+                items = emptyList(),
+                results = listOf(ChanceItemStack.of(deepslate, 1)),
+                cauldron = HasCauldronSimple.fluid(ruby.source).consume(BUCKET).build(),
+                extra = listOf(FluidRequirement.of(metal.source, BUCKET)),
+                fluidResults = emptyList(),
+            )
+
+            if (normal != null) {
+                multiFluid(
+                    provider,
+                    "multi_fluid_mixing/ore/$metalName",
+                    items = emptyList(),
+                    results = listOf(ChanceItemStack.of(normal, 1)),
+                    cauldron = HasCauldronSimple.fluid(sapphire.source).consume(BUCKET).build(),
+                    extra = listOf(FluidRequirement.of(metal.source, BUCKET)),
+                    fluidResults = emptyList(),
+                )
+            }
+        }
+    }
+
+    /** 交给本模组自己的配方类型（`provider` 就是 `RecipeOutput`，直接 accept 即可） */
+    private fun multiFluid(
+        provider: RegistrumRecipeProvider,
+        path: String,
+        items: List<ItemIngredientPredicate>,
+        results: List<ChanceItemStack>,
+        cauldron: HasCauldronSimple,
+        extra: List<FluidRequirement>,
+        fluidResults: List<FluidStack>,
+    ) {
+        provider.accept(
+            AnvilCraftFluid.of(path),
+            MultiFluidMixingRecipe(items, results, cauldron, extra, fluidResults, Int.MAX_VALUE),
+            null,
+        )
     }
 
     // ───────────────────────── 熔融：方块/物品 → 一桶流体 ─────────────────────────

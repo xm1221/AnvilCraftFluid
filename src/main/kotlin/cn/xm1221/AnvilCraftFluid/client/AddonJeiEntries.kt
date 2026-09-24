@@ -3,6 +3,7 @@ package cn.xm1221.AnvilCraftFluid.client
 import cn.xm1221.AnvilCraftFluid.AnvilCraftFluid
 import cn.xm1221.AnvilCraftFluid.event.CauldronItemReactions
 import cn.xm1221.AnvilCraftFluid.init.AddonFluids
+import cn.xm1221.AnvilCraftFluid.recipe.MultiFluidMixingRecipe
 import dev.anvilcraft.lib.v2.util.predicate.ItemIngredientPredicate
 import dev.dubhe.anvilcraft.init.block.ModBlocks
 import dev.dubhe.anvilcraft.init.block.ModFluids
@@ -49,14 +50,18 @@ import net.neoforged.neoforge.fluids.crafting.SizedFluidIngredient
  */
 class AddonCauldronRecipe(
     val displayItemInputs: List<ItemIngredientPredicate>,
-    /** 展示用的输入流体（基类只存 `SizedFluidIngredient`，这里自己留一份完整的 FluidStack） */
-    val displayFluidInputs: List<FluidStack>,
+    /**
+     * 展示用的输入流体，**按格子分组**：一组 = 一个流体槽，
+     * 组里多个流体表示"任一即可"（例如 `#anvilcraft_fluid:molten_gem` 这种标签，
+     * 会把标签里的 6 种熔融宝石都塞进同一格让 JEI 轮播）。
+     */
+    val displayFluidInputs: List<List<FluidStack>>,
     itemResults: List<ItemStack>,
     fluidResults: List<FluidStack>,
     val displayNotes: List<Component>,
 ) : FluidMixingRecipe(
-    // 基类只认 SizedFluidIngredient；展示用配方一种流体一个候选
-    displayFluidInputs.map { SizedFluidIngredient.of(it.fluid, it.amount) },
+    // 基类只认 SizedFluidIngredient，一组取第一个当代表
+    displayFluidInputs.map { SizedFluidIngredient.of(it.first().fluid, it.first().amount) },
     itemResults,
     fluidResults,
     false,
@@ -101,7 +106,7 @@ object AddonJeiEntries {
                     AddonCauldronRecipe(
                         displayItemInputs = listOf(item(exampleEnchantedBook(Enchantments.SHARPNESS, level))),
                         displayFluidInputs = listOf(
-                            FluidStack(frost, AnvilCraftFluid.CONFIG.frostFluidPerEnchantment),
+                            listOf(FluidStack(frost, AnvilCraftFluid.CONFIG.frostFluidPerEnchantment)),
                         ),
                         itemResults = listOf(ItemStack(Items.BOOK)),
                         fluidResults = listOf(
@@ -123,7 +128,7 @@ object AddonJeiEntries {
                     "curse_wash",
                     AddonCauldronRecipe(
                         displayItemInputs = listOf(item(exampleEnchantedBook(Enchantments.BINDING_CURSE, 1))),
-                        displayFluidInputs = listOf(FluidStack(gold, perCurse)),
+                        displayFluidInputs = listOf(listOf(FluidStack(gold, perCurse))),
                         itemResults = listOf(ItemStack(Items.BOOK)),
                         fluidResults = listOf(FluidStack(cursedGold, perCurse)),
                         displayNotes = listOf(
@@ -138,6 +143,36 @@ object AddonJeiEntries {
 
     private fun holder(path: String, recipe: FluidMixingRecipe): RecipeHolder<FluidMixingRecipe> =
         RecipeHolder(AnvilCraftFluid.of("jei/$path"), recipe)
+
+    /**
+     * 把本模组**自定义类型**的配方（[MultiFluidMixingRecipe]）转成展示用配方，
+     * 这样它和伪配方共用同一个 JEI 分类、外观完全一致——
+     * 差别只是"多出来的格子"：主流体槽 + 每个额外流体槽 + 物品输入槽。
+     */
+    fun displayOf(holder: RecipeHolder<MultiFluidMixingRecipe>): RecipeHolder<FluidMixingRecipe> {
+        val recipe = holder.value()
+        // 主流体：HasCauldronSimple 的谓词能给出 HolderSet（具体流体或整个标签）
+        val primary = recipe.cauldron.fluid().fluids()
+            .map { holders -> holders.map { holder -> FluidStack(holder.value(), recipe.cauldron.consume()) } }
+            .orElse(emptyList())
+        val extra = recipe.extraFluids.map { requirement ->
+            requirement.candidates().map { fluid -> FluidStack(fluid, requirement.amount) }
+        }
+        return RecipeHolder(
+            holder.id(),
+            AddonCauldronRecipe(
+                displayItemInputs = recipe.itemIngredients,
+                displayFluidInputs = listOf(primary) + extra,
+                itemResults = recipe.results.map { result ->
+                    result.stack().copy().apply { count = result.maxCount }
+                },
+                fluidResults = recipe.fluidResults,
+                displayNotes = listOf(
+                    Component.translatable("gui.anvilcraft_fluid.cauldron_reaction.anvil_strike"),
+                ),
+            ),
+        )
+    }
 
     /** 把示例物品包成"必须有它"的输入谓词 */
     private fun item(stack: ItemStack): ItemIngredientPredicate =
