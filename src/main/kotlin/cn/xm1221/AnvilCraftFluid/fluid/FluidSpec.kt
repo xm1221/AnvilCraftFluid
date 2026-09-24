@@ -1,16 +1,31 @@
 package cn.xm1221.AnvilCraftFluid.fluid
 
 /**
- * 流体族。族决定了**共用哪一套灰度贴图**，以及进哪个族流体标签。
+ * 流体族。族决定**共用哪一套灰度贴图**，以及进哪些流体标签。
  *
  * @property textureBase 贴图基名（`textures/block/<textureBase>_still.png` / `_flow.png`）
+ * @property molten 是否算"熔融材料"，即进总标签 `#anvilcraft_fluid:molten`
+ * @property familyTagPath 族标签路径；null 表示只进总标签
  */
-enum class FluidFamily(val textureBase: String) {
+enum class FluidFamily(
+    val textureBase: String,
+    val molten: Boolean,
+    val familyTagPath: String?,
+) {
     /** 熔融宝石族 */
-    GEM("molten_gem"),
+    GEM("molten_gem", true, "molten_gem"),
 
     /** 熔融金属族 */
-    METAL("molten_metal"),
+    METAL("molten_metal", true, "molten_metal"),
+
+    /**
+     * 功能流体族（浮霜 / 余烬 / 诅咒金）。
+     *
+     * 它们不是"熔融材料"而是"有特殊作用的液体"，所以**不进** `#molten`，只进 `#special`。
+     * 贴图暂时复用金属族（都是液态质感）；想给它们专属美术时，
+     * 补一对 `frost_fluid_still/flow.png` 并在对应的 [FluidSpec] 上写 `texture = "frost_fluid"` 即可。
+     */
+    SPECIAL("molten_metal", false, "special"),
 }
 
 /**
@@ -148,6 +163,32 @@ object AddonFluidSpecs {
         MOLTEN_ROYAL_STEEL,
     )
 
-    /** 本期注册的全部流体（P0-2 第一批） */
-    val ALL: List<FluidSpec> = GEMS + METALS
+    // ───────────────────── 功能流体（共用 SPECIAL 贴图） ─────────────────────
+
+    /** 浮霜液体：洗去物品附魔（见 `event/CauldronItemReactions.kt`） */
+    val FROST_FLUID = FluidSpec(
+        "frost_fluid", argb(0xFFBFE6F5), FluidFamily.SPECIAL,
+        lightLevel = 6, temperature = 300, viscosity = 2000,
+    )
+
+    /** 余烬液体：加速余烬装备的重铸修复 */
+    val EMBER_FLUID = FluidSpec(
+        "ember_fluid", argb(0xFFFF7A2A), FluidFamily.SPECIAL,
+        lightLevel = 15, temperature = 2000,
+    )
+
+    /** 诅咒金液体：洗掉诅咒附魔后的熔融金（上游诅咒金体系） */
+    val CURSED_GOLD_FLUID = FluidSpec(
+        "cursed_gold_fluid", argb(0xFF7A5230), FluidFamily.SPECIAL,
+        lightLevel = 8, temperature = 1400,
+    )
+
+    val SPECIALS: List<FluidSpec> = listOf(
+        FROST_FLUID,
+        EMBER_FLUID,
+        CURSED_GOLD_FLUID,
+    )
+
+    /** 本期注册的全部流体 */
+    val ALL: List<FluidSpec> = GEMS + METALS + SPECIALS
 }

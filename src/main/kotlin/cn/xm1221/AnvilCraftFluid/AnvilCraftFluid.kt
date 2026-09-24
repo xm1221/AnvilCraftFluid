@@ -2,6 +2,7 @@ package cn.xm1221.AnvilCraftFluid
 
 import cn.xm1221.AnvilCraftFluid.data.AddonDatagen
 import cn.xm1221.AnvilCraftFluid.event.CauldronFluidContentRegistry
+import cn.xm1221.AnvilCraftFluid.event.CauldronItemReactions
 import cn.xm1221.AnvilCraftFluid.init.AddonFluids
 import cn.xm1221.AnvilCraftFluid.init.AddonItemGroups
 import com.mojang.logging.LogUtils
@@ -11,6 +12,7 @@ import net.minecraft.resources.ResourceLocation
 import net.neoforged.bus.api.IEventBus
 import net.neoforged.fml.ModContainer
 import net.neoforged.fml.common.Mod
+import net.neoforged.neoforge.common.NeoForge
 import net.neoforged.neoforge.fluids.RegisterCauldronFluidContentEvent
 import org.jetbrains.annotations.NotNull
 import org.slf4j.Logger
@@ -43,6 +45,11 @@ class AnvilCraftFluid(modEventBus: IEventBus, modContainer: ModContainer) {
         modEventBus.addListener<RegisterCauldronFluidContentEvent> { event ->
             CauldronFluidContentRegistry.registerCauldronFluidContent(event)
         }
+
+        // 大型炼药锅上的「流体 × 物品」反应（浮霜洗附魔 / 熔融金洗诅咒 / 余烬加速修复）。
+        // LargeCauldronEvent 是 post 到 NeoForge.EVENT_BUS 的游戏总线事件，
+        // 所以这里显式注册到游戏总线，不走 @EventBusSubscriber。
+        NeoForge.EVENT_BUS.register(CauldronItemReactions)
 
         AddonDatagen.init()
     }

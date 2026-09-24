@@ -14,20 +14,27 @@ import net.minecraft.world.level.material.Fluid
  * - 顺带成为**注册结果的可核对产物**：`runData` 后
  *   `data/anvilcraft_fluid/tags/fluid/` 下的 json 会列出全部已注册流体。
  *
+ * 标签归属由 [cn.xm1221.AnvilCraftFluid.fluid.FluidFamily] 决定：
+ * 宝石 / 金属进 [MOLTEN] + 各自族标签；功能流体（浮霜 / 余烬 / 诅咒金）只进 [SPECIAL]。
+ *
  * 注意：[AddonFluids] 里对每个流体调用 `FluidBuilder.tag(...)` 时，
  * Registrum 会同时给**源流体**和流动流体打上标签。
  */
 object AddonFluidTags {
 
-    /** 所有熔融流体 */
-    val MOLTEN: TagKey<Fluid> = create("molten")
+    /** 全部熔融材料（宝石 + 金属） */
+    val MOLTEN: TagKey<Fluid> = of("molten")
 
-    /** 熔融宝石（红宝石 / 石英 / 蓝宝石 / 黄玉 / 绿宝石） */
-    val MOLTEN_GEM: TagKey<Fluid> = create("molten_gem")
+    /** 熔融宝石 */
+    val MOLTEN_GEM: TagKey<Fluid> = of("molten_gem")
 
-    /** 熔融金属（铁 / 金 / 铜 / 钨 / 皇家钢） */
-    val MOLTEN_METAL: TagKey<Fluid> = create("molten_metal")
+    /** 熔融金属 */
+    val MOLTEN_METAL: TagKey<Fluid> = of("molten_metal")
 
-    private fun create(path: String): TagKey<Fluid> =
+    /** 功能流体（浮霜 / 余烬 / 诅咒金） */
+    val SPECIAL: TagKey<Fluid> = of("special")
+
+    /** 按路径取（或新建）本模组的流体标签 */
+    fun of(path: String): TagKey<Fluid> =
         TagKey.create(Registries.FLUID, AnvilCraftFluid.of(path))
 }

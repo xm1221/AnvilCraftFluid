@@ -169,9 +169,10 @@ object AddonFluids {
             .fluidProperties { p ->
                 p.tickRate(spec.tickRate).explosionResistance(100.0f)
             }
-            // 打标签（Registrum 会同时给源流体与流动流体打上）：
-            // 全部熔融流体进 #anvilcraft_fluid:molten，再按族进 #molten_gem / #molten_metal
-            .tag(AddonFluidTags.MOLTEN, familyTag(spec.family))
+
+        // 打标签（Registrum 会同时给源流体与流动流体打上）
+        val tags = tagsFor(spec.family)
+        if (tags.isNotEmpty()) builder = builder.tag(*tags.toTypedArray())
 
         if (!spec.placeable) {
             builder = builder.noBlock()
@@ -224,10 +225,10 @@ object AddonFluids {
         }
         .register()
 
-    /** 流体族 → 族标签 */
-    private fun familyTag(family: FluidFamily): TagKey<Fluid> = when (family) {
-        FluidFamily.GEM -> AddonFluidTags.MOLTEN_GEM
-        FluidFamily.METAL -> AddonFluidTags.MOLTEN_METAL
+    /** 流体族 → 该进的标签列表：熔融族进 `#molten` + 族标签；功能流体只进 `#special` */
+    private fun tagsFor(family: FluidFamily): List<TagKey<Fluid>> = buildList {
+        if (family.molten) add(AddonFluidTags.MOLTEN)
+        family.familyTagPath?.let { add(AddonFluidTags.of(it)) }
     }
 
     /**
