@@ -2,6 +2,7 @@ package cn.xm1221.AnvilCraftFluid
 
 import cn.xm1221.AnvilCraftFluid.data.AddonDatagen
 import cn.xm1221.AnvilCraftFluid.event.CauldronFluidContentRegistry
+import cn.xm1221.AnvilCraftFluid.event.CauldronInteractions
 import cn.xm1221.AnvilCraftFluid.event.CauldronItemReactions
 import cn.xm1221.AnvilCraftFluid.init.AddonFluids
 import cn.xm1221.AnvilCraftFluid.init.AddonItemGroups
@@ -12,6 +13,7 @@ import net.minecraft.resources.ResourceLocation
 import net.neoforged.bus.api.IEventBus
 import net.neoforged.fml.ModContainer
 import net.neoforged.fml.common.Mod
+import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent
 import net.neoforged.neoforge.common.NeoForge
 import net.neoforged.neoforge.fluids.RegisterCauldronFluidContentEvent
 import org.jetbrains.annotations.NotNull
@@ -44,6 +46,11 @@ class AnvilCraftFluid(modEventBus: IEventBus, modContainer: ModContainer) {
         // （该事件实现 IModBusEvent，所以挂 mod 总线）
         modEventBus.addListener<RegisterCauldronFluidContentEvent> { event ->
             CauldronFluidContentRegistry.registerCauldronFluidContent(event)
+        }
+
+        // 桶 → 我们的炼药锅的交互条目（要等注册表填充后才能拿到桶物品实例）
+        modEventBus.addListener<FMLCommonSetupEvent> { event ->
+            CauldronInteractions.onCommonSetup(event)
         }
 
         // 大型炼药锅上的「流体 × 物品」反应（浮霜洗附魔 / 熔融金洗诅咒 / 余烬加速修复）。

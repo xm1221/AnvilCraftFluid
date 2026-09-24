@@ -54,13 +54,16 @@ object AddonFluids {
      * 一种已注册的流体及其配套设施。
      *
      * @property spec 定义（名字、染色、物理参数）
-     * @property fluid 流体条目（`get()` 拿源流体，`bucket` 拿桶物品）
+     * @property fluid 流体条目（`source` 拿源流体，`bucket` 拿桶物品）
      * @property cauldron 炼药锅方块条目
+     * @property interactions 该锅的交互表；桶相关的条目在
+     *   [cn.xm1221.AnvilCraftFluid.event.CauldronInteractions] 里等注册表填充后再补进去
      */
     class RegisteredFluid(
         val spec: FluidSpec,
         val fluid: FluidEntry<BaseFlowingFluid.Flowing>,
         val cauldron: BlockEntry<AddonCauldronBlock>,
+        val interactions: CauldronInteraction.InteractionMap,
     ) {
         /**
          * **源流体**，即注册名 `anvilcraft_fluid:<name>` 的那一个。
@@ -137,7 +140,7 @@ object AddonFluids {
         // 4) 注册炼药锅方块（名字必须是 `<name>_cauldron`）
         val cauldron = registerCauldron(spec, interactions)
 
-        return RegisteredFluid(spec, fluid, cauldron)
+        return RegisteredFluid(spec, fluid, cauldron, interactions)
     }
 
     /** 注册 `<name>` 流体本体（FluidType + source + flowing + 液体方块 + 桶） */

@@ -5,6 +5,7 @@ import cn.xm1221.AnvilCraftFluid.init.AddonFluids
 import dev.dubhe.anvilcraft.api.event.LargeCauldronEvent
 import dev.dubhe.anvilcraft.api.fluid.LargeCauldronFluidHandler
 import dev.dubhe.anvilcraft.api.itemhandler.LargeCauldronInputHandler
+import dev.dubhe.anvilcraft.init.block.ModFluids
 import dev.dubhe.anvilcraft.init.item.ModComponents
 import dev.dubhe.anvilcraft.util.CompatUtil
 import dev.dubhe.anvilcraft.util.FireReforgingUtil
@@ -14,6 +15,7 @@ import net.minecraft.core.component.DataComponents
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.tags.EnchantmentTags
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
 import net.minecraft.world.item.enchantment.ItemEnchantments
 import net.minecraft.world.level.material.Fluid
 import net.neoforged.bus.api.SubscribeEvent
@@ -147,6 +149,7 @@ object CauldronItemReactions {
             available -= fluids.consume(gold, cost)
             // 洗下来的诅咒被流体吸收：等量熔融金变成诅咒金液体
             fluids.fill(FluidStack(cursedGold, cost), IFluidHandler.FluidAction.EXECUTE)
+            turnEmptyEnchantedBookIntoBook(input, slot)
         }
     }
 
@@ -158,6 +161,8 @@ object CauldronItemReactions {
     ) {
         val frost = AddonFluids.byName("frost_fluid")?.source ?: return
         val perEnchantment = AnvilCraftFluid.CONFIG.frostFluidPerEnchantment.coerceAtLeast(1)
+        // 洗下来的附魔变成上游的"液态附魔"（不挂具体魔咒组件）
+        val liquidEnchantment = ModFluids.LIQUID_ENCHANTMENT.get()
 
         var available = fluids.amountOf(frost)
         if (available < perEnchantment) return
@@ -172,10 +177,30 @@ object CauldronItemReactions {
                 removed = if (washable > 0) removeEnchantments(stack, washable, onlyCurses = false) else 0
                 removed > 0
             }
-            if (removed > 0) {
-                available -= fluids.consume(frost, removed * perEnchantment)
-            }
+            if (removed <= 0) continue
+
+            val cost = removed * perEnchantment
+            available -= fluids.consume(frost, cost)
+            // 洗下来的附魔按同量变成液态附魔
+            fluids.fill(FluidStack(liquidEnchantment, cost), IFluidHandler.FluidAction.EXECUTE)
+            turnEmptyEnchantedBookIntoBook(input, slot)
         }
+    }
+
+    /**
+     * 被洗空的附魔书变回普通书。
+     *
+     * `mutateStackInSlot` 只能原地改物品（改不了物品**类型**），所以只能事后走
+     * `setStackInSlot`；而它遇到"跨槽重复物品"会抛 `IllegalArgumentException`，
+     * 因此先用 `isItemValid` 问一句——别的槽已经有普通书时就保持原样，不冒崩的风险。
+     */
+    private fun turnEmptyEnchantedBookIntoBook(input: LargeCauldronInputHandler, slot: Int) {
+        val stack = input.getStackInSlot(slot)
+        if (!stack.`is`(Items.ENCHANTED_BOOK)) return
+        if (countEnchantments(stack, onlyCurses = false) > 0) return
+
+        val book = ItemStack(Items.BOOK, stack.count)
+        if (input.isItemValid(slot, book)) input.setStackInSlot(slot, book)
     }
 
     // ───────────────────────────────── 工具 ─────────────────────────────────
