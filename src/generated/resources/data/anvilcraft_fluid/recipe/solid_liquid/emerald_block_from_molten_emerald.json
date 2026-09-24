@@ -1,0 +1,15 @@
+{
+  "type": "anvilcraft:solid_liquid",
+  "consume": 1000,
+  "fluid": "anvilcraft_fluid:molten_emerald",
+  "ingredients": [
+    {
+      "items": "minecraft:emerald"
+    }
+  ],
+  "results": [
+    {
+      "id": "minecraft:emerald_block"
+    }
+  ]
+}

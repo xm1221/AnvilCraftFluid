@@ -1,0 +1,15 @@
+{
+  "type": "anvilcraft:solid_liquid",
+  "consume": 1000,
+  "fluid": "anvilcraft_fluid:molten_tungsten",
+  "ingredients": [
+    {
+      "items": "minecraft:netherite_scrap"
+    }
+  ],
+  "results": [
+    {
+      "id": "minecraft:ancient_debris"
+    }
+  ]
+}
