@@ -119,7 +119,7 @@ object AddonRecipeHandler {
                 items = emptyList(),
                 results = listOf(ChanceItemStack.of(deepslate, 1)),
                 cauldron = HasCauldronSimple.fluid(ruby.source).consume(GEM_CATALYST).build(),
-                extra = listOf(FluidRequirement.of(metal.source, BUCKET)),
+                extra = listOf(FluidRequirement.of(metal.source, ORE_FLUID)),
                 fluidResults = emptyList(),
             )
 
@@ -130,7 +130,7 @@ object AddonRecipeHandler {
                     items = emptyList(),
                     results = listOf(ChanceItemStack.of(normal, 1)),
                     cauldron = HasCauldronSimple.fluid(sapphire.source).consume(GEM_CATALYST).build(),
-                    extra = listOf(FluidRequirement.of(metal.source, BUCKET)),
+                    extra = listOf(FluidRequirement.of(metal.source, ORE_FLUID)),
                     fluidResults = emptyList(),
                 )
             }
@@ -143,8 +143,8 @@ object AddonRecipeHandler {
                 "multi_fluid_mixing/emerald_ore",
                 items = emptyList(),
                 results = listOf(ChanceItemStack.of(Items.EMERALD_ORE, 1)),
-                cauldron = HasCauldronSimple.fluid(emerald.source).consume(BUCKET).build(),
-                extra = listOf(FluidRequirement.of(sapphire.source, GEM_CATALYST)),
+                cauldron = HasCauldronSimple.fluid(sapphire.source).consume(GEM_CATALYST).build(),
+                extra = listOf(FluidRequirement.of(emerald.source, ORE_FLUID)),
                 fluidResults = emptyList(),
             )
             multiFluid(
@@ -152,8 +152,8 @@ object AddonRecipeHandler {
                 "multi_fluid_mixing/deepslate_emerald_ore",
                 items = emptyList(),
                 results = listOf(ChanceItemStack.of(Items.DEEPSLATE_EMERALD_ORE, 1)),
-                cauldron = HasCauldronSimple.fluid(emerald.source).consume(BUCKET).build(),
-                extra = listOf(FluidRequirement.of(ruby.source, GEM_CATALYST)),
+                cauldron = HasCauldronSimple.fluid(ruby.source).consume(GEM_CATALYST).build(),
+                extra = listOf(FluidRequirement.of(emerald.source, ORE_FLUID)),
                 fluidResults = emptyList(),
             )
         }
@@ -188,6 +188,7 @@ object AddonRecipeHandler {
             "molten_sapphire" to ModBlocks.SAPPHIRE_BLOCK.get(),
             "molten_topaz" to ModBlocks.TOPAZ_BLOCK.get(),
             "molten_emerald" to Blocks.EMERALD_BLOCK,
+            "cursed_gold_fluid" to ModBlocks.CURSED_GOLD_BLOCK.get(),
             "molten_quartz" to Blocks.QUARTZ_BLOCK,
             "molten_amethyst" to Blocks.AMETHYST_BLOCK,
         )
@@ -252,6 +253,7 @@ object AddonRecipeHandler {
             "molten_sapphire" to ModBlocks.SAPPHIRE_BLOCK.get(),
             "molten_topaz" to ModBlocks.TOPAZ_BLOCK.get(),
             "molten_emerald" to Blocks.EMERALD_BLOCK,
+            "cursed_gold_fluid" to ModBlocks.CURSED_GOLD_BLOCK.get(),
         )
         for ((fluidName, block) in blockInputs) {
             meltingRecipe(provider, fluidName, block, 1)
@@ -369,6 +371,9 @@ object AddonRecipeHandler {
                 .save(provider, AnvilCraftFluid.of("solid_liquid/iron_block_from_molten_iron"))
         }
     }
+
+    /** 产矿石配方里的**主流体**用量（熔融金属 / 熔融绿宝石），用户口径 250 mB */
+    private const val ORE_FLUID = 250
 
     /** 宝石催化剂：产矿石的配方里红/蓝宝石只吃 10 mB（用户口径） */
     private const val GEM_CATALYST = 10

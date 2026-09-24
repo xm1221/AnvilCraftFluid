@@ -1,13 +1,13 @@
 {
   "type": "anvilcraft_fluid:multi_fluid_mixing",
   "cauldron": {
-    "consume": 1000,
-    "fluid": "anvilcraft_fluid:molten_emerald"
+    "consume": 10,
+    "fluid": "anvilcraft_fluid:molten_sapphire"
   },
   "extra_fluids": [
     {
-      "amount": 10,
-      "fluid": "anvilcraft_fluid:molten_sapphire"
+      "amount": 250,
+      "fluid": "anvilcraft_fluid:molten_emerald"
     }
   ],
   "ingredients": [],

@@ -6,6 +6,7 @@
   },
   "extra_fluids": [
     {
+      "amount": 250,
       "fluid": "anvilcraft_fluid:molten_zinc"
     }
   ],

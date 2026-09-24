@@ -1,0 +1,11 @@
+{
+  "type": "anvilcraft:solid_liquid",
+  "consume": 1000,
+  "fluid": "anvilcraft_fluid:cursed_gold_fluid",
+  "ingredients": [],
+  "results": [
+    {
+      "id": "anvilcraft:cursed_gold_block"
+    }
+  ]
+}
