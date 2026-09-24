@@ -1,138 +1,150 @@
 package cn.xm1221.AnvilCraftFluid.client
 
 import cn.xm1221.AnvilCraftFluid.AnvilCraftFluid
+import dev.dubhe.anvilcraft.integration.jei.category.AbstractLiquidReactionCategory
+import dev.dubhe.anvilcraft.integration.jei.util.JeiFluidUtil
+import dev.dubhe.anvilcraft.recipe.FluidMixingRecipe
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder
-import mezz.jei.api.gui.drawable.IDrawable
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView
 import mezz.jei.api.helpers.IGuiHelper
 import mezz.jei.api.recipe.IFocusGroup
+import mezz.jei.api.recipe.RecipeIngredientRole
 import mezz.jei.api.recipe.RecipeType
-import mezz.jei.api.recipe.category.IRecipeCategory
-import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.network.chat.Component
-import net.minecraft.world.item.ItemStack
-import net.neoforged.neoforge.fluids.FluidStack
+import net.minecraft.world.item.crafting.RecipeHolder
 import net.neoforged.neoforge.fluids.FluidType
 
 /**
- * 一条**展示用伪配方**（pseudo-recipe）。
+ * 「炼药锅流体反应」JEI 分类。
  *
- * 本模组的两个炼药锅行为是**代码反应**（见
- * [cn.xm1221.AnvilCraftFluid.event.CauldronItemReactions]），不是数据配方——
- * 因为它们要"任意附魔物品 → 它自己去附魔 + 按附魔条数产出"，
- * 而 `RecipeResult` 的产物必须是具体 `Item`，配方体系表达不了。
+ * ## 直接继承上游的分类（用户要求："为什么不直接抄"）
  *
- * 上游 AnvilCraft 对同类代码反应的处理方式就是**手工往 JEI 里塞展示用的假配方**
- * （`SolidLiquidCategory#registerRecipes` 里 `registration.addRecipes(...)` 那几条
- * `liquid_enchantment_cleanse/assimilation`），这里照同样的思路做：
- * 只为了让人在 JEI 里查得到，**不参与任何实际合成**。
+ * 继承 [AbstractLiquidReactionCategory]——AnvilCraft 的 `SolidLiquidCategory` /
+ * `FluidReactionCategory` 都用它作基类，所以背景（那只大型炼药锅的模型绘制
+ * `drawBigCauldron`）、槽位素材、箭头、输入/输出的排布规则**全部与上游一致**，
+ * 不用自己画任何东西。
  *
- * @property inputItem 示例输入物品（"任意附魔物品"的其中一个代表）
- * @property inputFluid 输入流体与量
- * @property outputItem 输出物品
- * @property outputFluid 输出流体与量
- * @property notes 画在配方下方的一两行说明（本地化键）
+ * ## 与上游的唯一差别：多一个**物品输入槽**
+ *
+ * 上游的 `ComplexFluidJeiRecipe` 在流体输入之外还挂"输入物品"，
+ * 而那个类是 `final` + 私有构造器，抄不了类——所以本模组的展示配方
+ * [AddonCauldronRecipe] 照同一套路自己继承 [FluidMixingRecipe]，
+ * 并把"输入物品"额外暴露出来；本分类在此基础上按上游的
+ * `inputPosition/itemOutputPosition/fluidOutputPosition` 规则排槽，
+ * 就是把那一格补上而已。
  */
-data class CauldronReactionJeiRecipe(
-    val inputItem: ItemStack,
-    val inputFluid: FluidStack,
-    val outputItem: ItemStack,
-    val outputFluid: FluidStack,
-    val notes: List<Component>,
-)
-
-/**
- * 「炼药锅流体反应」JEI 分类：`输入物品 + 输入流体 → 输出物品 + 输出流体`。
- *
- * 布局（150×54）：
- * ```
- * [物品] [流体]  →  [物品] [流体]
- *  洗掉全部附魔
- *  每条按 2^(等级-1) mB 产出液态魔咒
- * ```
- * 背景用 [IGuiHelper.createBlankDrawable]（不需要自己的贴图资源），
- * 槽位背景与箭头都用 JEI 自带素材。
- */
-class CauldronReactionCategory(private val guiHelper: IGuiHelper) :
-    IRecipeCategory<CauldronReactionJeiRecipe> {
+class CauldronReactionCategory(guiHelper: IGuiHelper) : AbstractLiquidReactionCategory(
+    guiHelper,
+    guiHelper.createDrawableItemStack(AddonJeiEntries.iconStack()),
+) {
 
     companion object {
-        /** 本分类的配方类型；uid = `anvilcraft_fluid:cauldron_reaction` */
-        val TYPE: RecipeType<CauldronReactionJeiRecipe> = RecipeType.create(
-            AnvilCraftFluid.MOD_ID,
-            "cauldron_reaction",
-            CauldronReactionJeiRecipe::class.java,
-        )
+        /**
+         * 本分类的配方类型。
+         *
+         * 用 `createRecipeHolderType` 造，与上游 `AnvilCraftJeiPlugin.SOLID_LIQUID`
+         * 同一种形状（`RecipeType<RecipeHolder<FluidMixingRecipe>>`），
+         * 这样上游那套渲染/助手方法能直接用。
+         */
+        val TYPE: RecipeType<RecipeHolder<FluidMixingRecipe>> =
+            RecipeType.createRecipeHolderType(AddonJeiEntries.CATEGORY_ID)
 
-        private const val WIDTH = 150
-        private const val HEIGHT = 54
+        private const val SLOT_INNER = 16
+        private const val SLOT_OFFSET = 1
 
-        /** 槽位纵向位置：JEI 槽位是 18×18 */
-        private const val SLOT_Y = 8
-        private const val SLOT_SIZE = 16
-
-        /** 一桶，用来决定流体槽的"满格"高度 */
+        /** 流体槽按"一桶"画满格 */
         private const val FLUID_CAPACITY = FluidType.BUCKET_VOLUME.toLong()
     }
 
-    private val background: IDrawable = guiHelper.createBlankDrawable(WIDTH, HEIGHT)
-    private val arrow: IDrawable = guiHelper.recipeArrow
-
-    /** 分类图标：优先用浮霜桶（没有就退回大型炼药锅） */
-    private val icon: IDrawable = guiHelper.createDrawableItemStack(
-        AddonJeiEntries.iconStack(),
-    )
-
-    override fun getRecipeType(): RecipeType<CauldronReactionJeiRecipe> = TYPE
+    override fun getRecipeType(): RecipeType<RecipeHolder<FluidMixingRecipe>> = TYPE
 
     override fun getTitle(): Component =
         Component.translatable("gui.anvilcraft_fluid.category.cauldron_reaction")
 
-    override fun getIcon(): IDrawable = icon
-
-    override fun getBackground(): IDrawable = background
-
-    override fun getWidth(): Int = WIDTH
-
-    override fun getHeight(): Int = HEIGHT
-
     override fun setRecipe(
         builder: IRecipeLayoutBuilder,
-        recipe: CauldronReactionJeiRecipe,
+        recipeHolder: RecipeHolder<FluidMixingRecipe>,
         focuses: IFocusGroup,
     ) {
-        // 输入：物品 + 流体
-        builder.addInputSlot(2, SLOT_Y)
-            .setStandardSlotBackground()
-            .addItemStack(recipe.inputItem)
-        builder.addInputSlot(24, SLOT_Y)
-            .setFluidRenderer(FLUID_CAPACITY, true, SLOT_SIZE, SLOT_SIZE)
-            .addFluidStack(recipe.inputFluid.fluid, recipe.inputFluid.amount.toLong())
+        val recipe = recipeHolder.value as? AddonCauldronRecipe ?: return
+        val itemInputs = recipe.displayItemInputs
+        val fluidInputs = recipe.displayFluidInputs
+        val inputCount = itemInputs.size + fluidInputs.size
 
-        // 输出：物品 + 流体
-        builder.addOutputSlot(72, SLOT_Y)
-            .setOutputSlotBackground()
-            .addItemStack(recipe.outputItem)
-        builder.addOutputSlot(94, SLOT_Y)
-            .setFluidRenderer(FLUID_CAPACITY, true, SLOT_SIZE, SLOT_SIZE)
-            .addFluidStack(recipe.outputFluid.fluid, recipe.outputFluid.amount.toLong())
+        // 输入：物品槽（上游那类多出来的就是这一格）+ 流体槽，按上游的输入网格规则排
+        itemInputs.forEachIndexed { index, ingredient ->
+            val position = inputPosition(inputCount, index)
+            builder.addSlot(
+                RecipeIngredientRole.INPUT,
+                position.x + SLOT_OFFSET,
+                position.y + SLOT_OFFSET,
+            ).addItemStacks(ingredient.items.toList())
+        }
+        fluidInputs.forEachIndexed { index, fluid ->
+            val position = inputPosition(inputCount, itemInputs.size + index)
+            JeiFluidUtil.addFluidSlot(
+                builder,
+                RecipeIngredientRole.INPUT,
+                position.x + SLOT_OFFSET,
+                position.y + SLOT_OFFSET,
+                SLOT_INNER,
+                SLOT_INNER,
+                FLUID_CAPACITY,
+                true,
+                listOf(fluid),
+            )
+        }
+
+        // 输出：物品 + 流体（两类都有时上游会拆成两列）
+        val itemResults = recipe.itemResults
+        val fluidResults = recipe.fluidResults
+        val splitOutputColumns = itemResults.isNotEmpty() && fluidResults.isNotEmpty()
+        itemResults.forEachIndexed { index, stack ->
+            val position = itemOutputPosition(itemResults.size, index, splitOutputColumns)
+            builder.addSlot(
+                RecipeIngredientRole.OUTPUT,
+                position.x + SLOT_OFFSET,
+                position.y + SLOT_OFFSET,
+            ).addItemStack(stack.copy())
+        }
+        fluidResults.forEachIndexed { index, fluid ->
+            val position = fluidOutputPosition(fluidResults.size, index, splitOutputColumns)
+            JeiFluidUtil.addFluidSlot(
+                builder,
+                RecipeIngredientRole.OUTPUT,
+                position.x + SLOT_OFFSET,
+                position.y + SLOT_OFFSET,
+                SLOT_INNER,
+                SLOT_INNER,
+                FLUID_CAPACITY,
+                true,
+                listOf(fluid),
+            )
+        }
     }
 
+    /** 背景直接交给上游画（大型炼药锅模型 + 箭头） */
     override fun draw(
-        recipe: CauldronReactionJeiRecipe,
+        recipeHolder: RecipeHolder<FluidMixingRecipe>,
         recipeSlotsView: IRecipeSlotsView,
         guiGraphics: GuiGraphics,
         mouseX: Double,
         mouseY: Double,
     ) {
-        arrow.draw(guiGraphics, 46, SLOT_Y + 1)
-        val font = Minecraft.getInstance().font
-        recipe.notes.forEachIndexed { index, note ->
-            guiGraphics.drawString(font, note, 2, 30 + index * 10, NOTE_COLOR, false)
-        }
+        drawBigCauldron(recipeHolder, recipeSlotsView, guiGraphics, mouseX, mouseY)
     }
-}
 
-/** 说明文字的颜色（深灰，两种主题下都看得清） */
-private const val NOTE_COLOR: Int = 0xFF404040.toInt()
+    /**
+     * 说明文字走 tooltip。
+     *
+     * 上游这套布局里没有文字区（162×64 全给了锅的模型），画上去会盖住机器，
+     * 所以把"洗掉全部附魔 / 每条按 2^(等级-1) mB 产出液态魔咒"这类说明做成悬停提示。
+     */
+    override fun getTooltipStrings(
+        recipeHolder: RecipeHolder<FluidMixingRecipe>,
+        recipeSlotsView: IRecipeSlotsView,
+        mouseX: Double,
+        mouseY: Double,
+    ): List<Component> = (recipeHolder.value as? AddonCauldronRecipe)?.displayNotes ?: emptyList()
+}

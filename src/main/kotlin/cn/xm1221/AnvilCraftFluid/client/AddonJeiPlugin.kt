@@ -40,7 +40,6 @@ class AddonJeiPlugin : IModPlugin {
             CauldronReactionCategory(registration.jeiHelpers.guiHelper),
         )
     }
-
     override fun registerRecipes(registration: IRecipeRegistration) {
         registration.addRecipes(CauldronReactionCategory.TYPE, AddonJeiEntries.pseudoRecipes())
 
