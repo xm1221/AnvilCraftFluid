@@ -30,9 +30,13 @@ class AnvilCraftFluid(modEventBus: IEventBus, modContainer: ModContainer) {
     }
 
     init {
-        // 流体 + 桶 + 液体方块 + 炼药锅（必须最先注册，后面的注册项会引用它们）
-        AddonFluids.register()
+        // ⚠️ 顺序关键：先设默认创造标签页，再注册条目。
+        // Registrum 在创建物品 builder 时会读一次 defaultCreativeModeTab，
+        // 晚设的话桶只会落到原版搜索页（见 AddonItemGroups 的注释）。
         AddonItemGroups.register(modEventBus)
+
+        // 流体 + 桶 + 液体方块 + 炼药锅
+        AddonFluids.register()
 
         // 把锅↔流体登记进 NeoForge 的 CauldronFluidContent
         // （该事件实现 IModBusEvent，所以挂 mod 总线）
