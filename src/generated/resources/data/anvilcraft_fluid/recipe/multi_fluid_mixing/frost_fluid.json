@@ -1,0 +1,24 @@
+{
+  "type": "anvilcraft_fluid:multi_fluid_mixing",
+  "cauldron": {
+    "consume": 1000,
+    "fluid": "minecraft:powder_snow"
+  },
+  "extra_fluids": [
+    {
+      "fluid": "anvilcraft_fluid:molten_royal_steel"
+    }
+  ],
+  "fluid_results": [
+    {
+      "amount": 1000,
+      "id": "anvilcraft_fluid:frost_fluid"
+    }
+  ],
+  "ingredients": [
+    {
+      "items": "anvilcraft:frost_metal_ingot"
+    }
+  ],
+  "results": []
+}

@@ -1,0 +1,10 @@
+{
+  "type": "anvilcraft:time_warp",
+  "consume": 1000,
+  "fluid": "anvilcraft_fluid:frost_fluid",
+  "results": [
+    {
+      "id": "anvilcraft:frost_metal_block"
+    }
+  ]
+}

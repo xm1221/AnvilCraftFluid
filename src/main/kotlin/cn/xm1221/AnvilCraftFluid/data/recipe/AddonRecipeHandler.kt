@@ -11,14 +11,19 @@ import dev.anvilcraft.lib.v2.util.predicate.ItemIngredientPredicate
 import dev.dubhe.anvilcraft.recipe.component.HasCauldronSimple
 import net.neoforged.neoforge.fluids.FluidStack
 import dev.dubhe.anvilcraft.init.block.ModBlocks
+import dev.dubhe.anvilcraft.init.item.ModItems
 import dev.dubhe.anvilcraft.recipe.FluidMixingRecipe
+import dev.dubhe.anvilcraft.recipe.anvil.util.WrapUtils
 import dev.dubhe.anvilcraft.recipe.anvil.wrap.SolidLiquidRecipe
 import dev.dubhe.anvilcraft.recipe.anvil.wrap.SuperHeatingRecipe
 import dev.dubhe.anvilcraft.recipe.anvil.wrap.TimeWarpRecipe
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.world.item.Items
 import net.minecraft.world.level.ItemLike
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.level.material.Fluid
+import net.minecraft.world.level.material.Fluids
 
 /**
  * 配方 datagen。
@@ -93,6 +98,25 @@ object AddonRecipeHandler {
                 //    熔融石英与熔融紫水晶**不能**炼皇家钢（用户拍板）
                 extra = listOf(FluidRequirement.of(AddonFluidTags.ROYAL_STEEL_GEMS, BUCKET)),
                 fluidResults = listOf(FluidStack(royalSteel.source, BUCKET)),
+            )
+        }
+
+        // 浮霜流体：1000 mB 细雪 + 1000 mB 熔融皇家钢 + 1 浮霜金属锭 → 1000 mB 浮霜流体
+        // （细雪是**锅里**的主流体；熔融皇家钢走 extra_fluids——这正是自研类型存在的理由）
+        val powderSnow = powderSnowFluid()
+        val frost = AddonFluids.byName(FROST_FLUID)
+        val steelForFrost = AddonFluids.byName("molten_royal_steel")
+        if (powderSnow != null && frost != null && steelForFrost != null) {
+            multiFluid(
+                provider,
+                "multi_fluid_mixing/frost_fluid",
+                items = listOf(
+                    ItemIngredientPredicate.Builder.item().of(ModItems.FROST_METAL_INGOT).build(),
+                ),
+                results = emptyList(),
+                cauldron = HasCauldronSimple.fluid(powderSnow).consume(BUCKET).build(),
+                extra = listOf(FluidRequirement.of(steelForFrost.source, BUCKET)),
+                fluidResults = listOf(FluidStack(frost.source, BUCKET)),
             )
         }
 
@@ -295,6 +319,16 @@ object AddonRecipeHandler {
             .result(Items.ANCIENT_DEBRIS)
             .save(provider, AnvilCraftFluid.of("time_warp/ancient_debris_from_netherite_ingot"))
 
+        // 浮霜流体时移 → 浮霜金属块（用户口径：**不需要输入物品**，
+        // 与上游 `.fluid(MELT_GEM_CAULDRON).consume(1000).result(CHROMATIC_STONE)` 同形）
+        AddonFluids.byName(FROST_FLUID)?.let { frost ->
+            TimeWarpRecipe.builder()
+                .fluid(frost.cauldron.get())
+                .consume(BUCKET)
+                .result(ModBlocks.FROST_METAL_BLOCK.get())
+                .save(provider, AnvilCraftFluid.of("time_warp/frost_metal_block"))
+        }
+
         val tungsten = AddonFluids.byName("molten_tungsten") ?: return
         TimeWarpRecipe.builder()
             .fluid(tungsten.cauldron.get())
@@ -371,6 +405,30 @@ object AddonRecipeHandler {
                 .save(provider, AnvilCraftFluid.of("solid_liquid/iron_block_from_molten_iron"))
         }
     }
+
+    /**
+     * 细雪流体。
+     *
+     * 原版/NeoForge 没有给细雪暴露可直接引用的 `Fluid` 常量（上游 AnvilCraft 同样如此），
+     * 所以照它的写法从**细雪炼药锅**反查：`WrapUtils.cauldron2Fluid`。
+     *
+     * ⚠️ **绝不能把异常漏出去**：本方法是在 `GatherDataEvent` 的监听器里被调用的
+     * （`AddonRecipeHandler.init` 在监听时立即执行），一旦抛出，整个 datagen 会
+     * **一个 provider 都注册不上**——日志只显示 `All providers took: 0 ms`、
+     * `total files: 0`，而且 `src/generated` 里已生成的资源会被当成 stale 清空，
+     * 偏偏 `runData` 还报 BUILD SUCCESSFUL（异常被事件派发吞掉）。已踩过一次。
+     */
+    private fun powderSnowFluid(): Fluid? =
+        try {
+            val id = WrapUtils.cauldron2Fluid(Blocks.POWDER_SNOW_CAULDRON)
+            BuiltInRegistries.FLUID.get(id).takeIf { it !== Fluids.EMPTY }
+        } catch (e: Throwable) {
+            AnvilCraftFluid.LOGGER.warn("取不到细雪流体，跳过浮霜流体配方", e)
+            null
+        }
+
+    /** 浮霜流体（功能性流体，见 `fluid/FluidSpec.kt`） */
+    private const val FROST_FLUID = "frost_fluid"
 
     /** 产矿石配方里的**主流体**用量（熔融金属 / 熔融绿宝石），用户口径 250 mB */
     private const val ORE_FLUID = 250
