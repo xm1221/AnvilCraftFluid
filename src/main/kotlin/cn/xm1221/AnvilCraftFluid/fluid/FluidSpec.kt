@@ -96,7 +96,14 @@ object AddonFluidTextures {
  */
 object AddonFluidSpecs {
 
-    /** `0xAARRGGBB` 字面量转 Int（Kotlin 的十六进制字面量超过 Int 范围时是 Long） */
+    /**
+     * `0xAARRGGBB` 字面量转 Int（Kotlin 的十六进制字面量超过 Int 范围时是 Long）。
+     *
+     * ⚠️ 本项目的颜色一律写成 **`0xAARRGGBB` 十六进制**，alpha 必须是 `FF`。
+     * 写成十进制（例如 `383030`）时它实际是 `0x0005D836`——**alpha = 0**，
+     * 于是流体和桶内液体都变成全透明（看上去"像没有贴图"）。
+     * 要改色只改 [FluidSpec.tint]，不需要动任何贴图。
+     */
     private fun argb(value: Long): Int = value.toInt()
 
     // ───────────────────────── 熔融宝石（共用 GEM 贴图） ─────────────────────────
@@ -145,14 +152,24 @@ object AddonFluidSpecs {
         "molten_copper", argb(0xFFE07A3F), FluidFamily.METAL, lightLevel = 11,
     )
 
-    /** 熔融钨 */
+    /**
+     * 熔融钨。
+     *
+     * 颜色来自用户给的十进制值 `383030`，对应十六进制 `0x5D836`；
+     * 这里补成完整的 `0xAARRGGBB`（`0xFF05D836`），alpha 必须是 `FF` 才有不透明效果。
+     * 温度 3400 是全表最高（钨是熔点最高的金属，现实约 3422°C）。
+     */
     val MOLTEN_TUNGSTEN = FluidSpec(
-        "molten_tungsten", argb(0xFF9AA6B2), FluidFamily.METAL, temperature = 3400, lightLevel = 14,
+        "molten_tungsten", argb(0xFF05D836), FluidFamily.METAL, temperature = 3400, lightLevel = 14,
     )
 
-    /** 熔融皇家钢 */
+    /**
+     * 熔融皇家钢。
+     *
+     * 颜色来自用户给的十进制值 `63766`，对应十六进制 `0xF916` → `0xFF00F916`。
+     */
     val MOLTEN_ROYAL_STEEL = FluidSpec(
-        "molten_royal_steel", argb(63766), FluidFamily.METAL, temperature = 1600, lightLevel = 13,
+        "molten_royal_steel", argb(0xFF00F916), FluidFamily.METAL, temperature = 500, lightLevel = 13,
     )
 
     val METALS: List<FluidSpec> = listOf(

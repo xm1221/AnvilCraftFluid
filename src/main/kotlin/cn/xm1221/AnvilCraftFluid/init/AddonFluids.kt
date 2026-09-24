@@ -69,12 +69,20 @@ object AddonFluids {
         /**
          * **源流体**，即注册名 `anvilcraft_fluid:<name>` 的那一个。
          *
-         * ⚠️ 不要用 [fluid]`.get()`——Registrum 的 `FluidBuilder` 把 **流动** 流体
-         * 作为主条目（`flowing_<name>`），源流体挂在 `getSource()` 上。
+         * ⚠️ 不要直接用 [fluid]`.get()`——Registrum 的 `FluidBuilder` 把 **流动** 流体
+         * 作为主条目（`flowing_<name>`），源流体挂在它的 `getSource()` 上。
          * 配方、桶、炼药锅内容、比较/匹配一律要用源流体，
          * 否则会得到 `anvilcraft_fluid:flowing_xxx` 这种永远匹配不上的 id。
+         *
+         * ⚠️⚠️ **绝对不要写 `fluid.getSource<BaseFlowingFluid.Flowing>()`**！
+         * `FluidEntry.getSource<S>()` 的实现是 `(S) get().getSource()`——一次 **无检查强转**。
+         * 传 `Flowing` 作为类型实参时，运行时会把 `BaseFlowingFluid$Source` 往
+         * `BaseFlowingFluid$Flowing` 转，直接
+         * `ClassCastException: Source cannot be cast to Flowing`
+         * （2026-09-24 的崩溃就是这么来的：空桶从熔融金属锅里舀出时炸在交互 lambda 里）。
+         * 走 `get().source` 用的是原版 `FlowingFluid#getSource(): Fluid`，**没有任何泛型转换**。
          */
-        val source: BaseFlowingFluid get() = fluid.getSource<BaseFlowingFluid.Flowing>()
+        val source: Fluid get() = fluid.get().source
 
         /** 桶物品；注册冻结后才可安全解析 */
         val bucket: Item? get() = source.bucket
@@ -119,8 +127,11 @@ object AddonFluids {
 
         // 3) 空桶从锅里舀出：直接用原版 CauldronInteraction.fillBucket。
         //    把桶倒进锅由 NeoForge 的 CauldronFluidContent 自动处理（见注册事件）。
+        //    ⚠️ 取桶物品必须走 `get().source`（原版 `FlowingFluid#getSource(): Fluid`），
+        //       不能写 `getSource<BaseFlowingFluid.Flowing>()`——那是无检查强转，
+        //       运行时会把 `Source` 转 `Flowing` 抛 ClassCastException（空桶舀出时崩溃的直接原因）。
         interactions.map()[Items.BUCKET] = CauldronInteraction { state, level, pos, player, hand, stack ->
-            val filled = fluid.getSource<BaseFlowingFluid.Flowing>().bucket?.let(::ItemStack) ?: ItemStack.EMPTY
+            val filled = fluid.get().source.bucket?.let(::ItemStack) ?: ItemStack.EMPTY
             if (filled.isEmpty) {
                 ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION
             } else {

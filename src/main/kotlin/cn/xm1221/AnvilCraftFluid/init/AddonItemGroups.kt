@@ -30,14 +30,14 @@ import java.util.function.Supplier
  * 否则物品只会落到 `CreativeModeTabs.SEARCH`（原版搜索页），
  * 我们自己的栏里空空如也——而且不会有任何报错。
  *
- * 本模组的物品（10 个桶）是在 [AddonFluids] 初始化时由
+ * 本模组的物品（14 个桶）是在 [AddonFluids] 初始化时由
  * `FluidBuilder.bucket()` → `REGISTRUM.item(...)` 创建的，
  * 所以 [register] 必须在 `AddonFluids.register()` **之前**调用；
  * 默认标签页的设置写在下面的 `init` 块里（`ADDON_ITEMS` 声明之后，
  * 否则 Kotlin 的初始化顺序会让 `ADDON_ITEMS` 还是 null）。
  *
  * 炼药锅没有物品形式（与原版 / AnvilCraft 一致：只能由桶倒进炼药锅产生），
- * 所以栏里只会有 10 个桶。
+ * 所以栏里只有 14 个桶（6 宝石 + 5 金属 + 3 功能流体），没有锅。
  */
 class AddonItemGroups {
     companion object {
