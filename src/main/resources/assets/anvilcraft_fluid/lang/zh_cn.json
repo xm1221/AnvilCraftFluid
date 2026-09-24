@@ -47,13 +47,11 @@
   "block.anvilcraft_fluid.cursed_gold_fluid_cauldron": "装有诅咒金液体的炼药锅",
 
   "anvilcraft_fluid.configuration.ember_repair_per_tick": "余烬液体修复速率",
-  "anvilcraft_fluid.configuration.ember_repair_per_tick.tooltip": "余烬液体每 tick 修复的耐久点数（上游岩浆自修复是 10）",
-  "anvilcraft_fluid.configuration.ember_fluid_per_durability": "余烬液体修复耗量",
-  "anvilcraft_fluid.configuration.ember_fluid_per_durability.tooltip": "余烬液体每修复 1 点耐久消耗的 mB（一锅 = 1000 mB）",
+  "anvilcraft_fluid.configuration.ember_repair_per_tick.tooltip": "物品站在余烬液体里时每 tick 修复的耐久点数（上游岩浆是 10；余烬不消耗自身流体）",
   "anvilcraft_fluid.configuration.gold_fluid_per_curse": "熔融金祛咒耗量",
   "anvilcraft_fluid.configuration.gold_fluid_per_curse.tooltip": "熔融金每洗掉 1 条诅咒附魔消耗的 mB，并按同量产出诅咒金液体",
   "anvilcraft_fluid.configuration.frost_fluid_per_enchantment": "浮霜液体洗附魔耗量",
-  "anvilcraft_fluid.configuration.frost_fluid_per_enchantment.tooltip": "浮霜液体每洗掉 1 条附魔消耗的 mB",
+  "anvilcraft_fluid.configuration.frost_fluid_per_enchantment.tooltip": "浮霜液体每洗掉 1 条附魔消耗的 mB；洗下来的魔咒按上游公式 2^(等级-1) mB 变成液态魔咒",
   "anvilcraft_fluid.configuration.section.anvilcraft.fluid.common.toml": "铁砧工艺：流体扩展 通用配置",
   "anvilcraft_fluid.configuration.section.anvilcraft.fluid.common.toml.title": "铁砧工艺：流体扩展 通用配置",
   "anvilcraft_fluid.configuration.title": "铁砧工艺：流体扩展 配置"

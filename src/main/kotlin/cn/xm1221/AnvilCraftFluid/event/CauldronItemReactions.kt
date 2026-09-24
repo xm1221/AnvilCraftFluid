@@ -6,13 +6,9 @@ import dev.dubhe.anvilcraft.api.event.LargeCauldronEvent
 import dev.dubhe.anvilcraft.api.fluid.LargeCauldronFluidHandler
 import dev.dubhe.anvilcraft.api.itemhandler.LargeCauldronInputHandler
 import dev.dubhe.anvilcraft.init.block.ModFluids
-import dev.dubhe.anvilcraft.init.item.ModComponents
 import dev.dubhe.anvilcraft.util.CompatUtil
-import dev.dubhe.anvilcraft.util.FireReforgingUtil
-import net.minecraft.core.BlockPos
 import net.minecraft.core.component.DataComponentType
 import net.minecraft.core.component.DataComponents
-import net.minecraft.server.level.ServerLevel
 import net.minecraft.tags.EnchantmentTags
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
@@ -23,7 +19,7 @@ import net.neoforged.neoforge.fluids.FluidStack
 import net.neoforged.neoforge.fluids.capability.IFluidHandler
 
 /**
- * 大型炼药锅上的「流体 × 物品」反应（P1-1 的三个特殊行为）。
+ * 大型炼药锅上的「流体 × 物品」反应。
  *
  * ## 为什么挂在 [LargeCauldronEvent.ServerTick]
  *
@@ -32,22 +28,35 @@ import net.neoforged.neoforge.fluids.capability.IFluidHandler
  * post 一次该事件（post 到 `NeoForge.EVENT_BUS`，所以本监听器注册在游戏总线上）。
  *
  * 拿到锅后全部走公开访问器：
- * - `getFluids()` → [LargeCauldronFluidHandler]（8 罐 × 64 B）：`getFluidInTank` /
+ * - `getFluids()` → [LargeCauldronFluidHandler]（8 罐 × 64000 mB）：`getFluidInTank` /
  *   `drainStoredFluid` / `fill`
  * - `getInputHandler()` → [LargeCauldronInputHandler]（8 槽）：`mutateStackInSlot(slot, mutator)`
- *   原地改物品（改附魔、修耐久）
+ *   原地改物品（改附魔、修耐久）；谓词返回 true 才会写回
  *
- * ## 三个行为
+ * ## 行为
  *
  * | 流体 | 行为 | 参考 |
  * | --- | --- | --- |
- * | 余烬液体 | 给带 `FIRE_REFORGING` 的余烬装备加速修复，按耐久耗流体 | 上游岩浆自修复 `LAVA_REPAIR_PER_TICK = 10` 且不耗流体 |
  * | 熔融金 | 洗掉诅咒附魔，**按同量产出诅咒金液体** | 上游 `RoyalGrindstoneMenu.GOLD_PER_CURSE = 16` 的祛咒 |
- * | 浮霜液体 | 洗掉**全部**附魔 | 上游余烬砂轮"附魔转移"的反向操作 |
+ * | 浮霜液体 | 洗掉**全部**附魔，产出**液态魔咒**（量按 `2^(等级-1)` mB，见 [liquidAmountFor]） | 上游 `TranscendenceGrindstoneMenu#getLiquidAmount` |
  *
- * 三者互不干扰：各自只在锅里存在自己那种流体时才动手，且处理的是不同效果。
+ * ⚠️ **余烬液体不在这里**（用户口径）：它的修复与上游"站在火/岩浆里就修"一样，
+ * 是**方块接触**行为而不是炼药锅行为，见 `block/ReforgingFluidBlock` 与 `block/AddonCauldronBlock`。
+ *
+ * ⚠️ 这两个行为是**代码反应**，不是数据配方。查过上游："祛除附魔 → 液态魔咒"上游自己也
+ * 不是用配方做的（超凡砂轮 GUI + `LiquidEnchantmentCauldronRecipe` 硬编码代码反应，
+ * JEI 里那两条 `liquid_enchantment_cleanse/assimilation` 只是手工补的展示用假配方），
+ * 而 `solid_liquid` 配方的 result 必须是**具体物品**，表达不了"任意附魔物品 → 它自己去附魔"。
  */
 object CauldronItemReactions {
+
+    /**
+     * [liquidAmountFor] 的最大移位位数：`2^16 = 65536 mB`。
+     *
+     * 上游 `TranscendenceGrindstoneMenu#getLiquidAmount` 是 `1L << (level-1)` 且只挡
+     * `level >= 64`；我们用 `Int` 装 mB，所以自己封顶，避免魔改的高等级魔咒算出溢出量。
+     */
+    private const val MAX_LIQUID_ENCHANTMENT_SHIFT: Int = 16
 
     /**
      * 物品上可能承载附魔的全部组件（对齐上游 `TranscendenceGrindstoneMenu#getEnchantmentTypes`）。
@@ -92,59 +101,8 @@ object CauldronItemReactions {
 
         val input = event.cauldron.inputHandler
         // 注意：BlockEntity.worldPosition 是 protected 字段，Kotlin 下要用 getBlockPos()
-        reforgeWithEmber(event.serverLevel, event.cauldron.blockPos, fluids, input)
         washCursesWithGold(fluids, input)
         washEnchantmentsWithFrost(fluids, input)
-    }
-
-    // ───────────────────────── 余烬液体：加速余烬装备修复 ─────────────────────────
-
-    private fun reforgeWithEmber(
-        level: ServerLevel,
-        cauldronPos: BlockPos,
-        fluids: LargeCauldronFluidHandler,
-        input: LargeCauldronInputHandler,
-    ) {
-        val ember = AddonFluids.byName("ember_fluid")?.source ?: return
-        var budget = fluids.amountOf(ember)
-        if (budget <= 0) return
-
-        val perDurability = AnvilCraftFluid.CONFIG.emberFluidPerDurability.coerceAtLeast(1)
-        val perTick = AnvilCraftFluid.CONFIG.emberRepairPerTick.coerceAtLeast(1)
-
-        for (slot in 0 until input.slots) {
-            if (budget < perDurability) break
-            // 这点流体最多能修多少耐久
-            val affordable = minOf(perTick, budget / perDurability)
-            if (affordable <= 0) break
-
-            var repaired = 0
-            input.mutateStackInSlot(slot) { stack ->
-                if (stack.has(ModComponents.FIRE_REFORGING) && stack.isDamaged) {
-                    val amount = minOf(affordable, stack.damageValue)
-                    // 上游工具：内部会再校验组件与耐久，并触发重铸统计
-                    repaired = if (amount > 0 && FireReforgingUtil.repair(stack, amount, level, cauldronPos)) {
-                        amount
-                    } else {
-                        0
-                    }
-                } else {
-                    repaired = 0
-                }
-                repaired > 0
-            }
-            if (repaired > 0) {
-                budget -= fluids.consume(ember, repaired * perDurability)
-                // 修满时打一条（每 tick 修复都会走到上面，打日志会刷屏）
-                if (input.getStackInSlot(slot).damageValue == 0) {
-                    AnvilCraftFluid.LOGGER.debug(
-                        "Ember reforge: repaired item in slot {} back to full, {} mB ember fluid left",
-                        slot,
-                        budget,
-                    )
-                }
-            }
-        }
     }
 
     // ───────────────────────── 熔融金：洗诅咒 → 诅咒金液体 ─────────────────────────
@@ -167,7 +125,12 @@ object CauldronItemReactions {
             input.mutateStackInSlot(slot) { stack ->
                 val curses = countEnchantments(stack, onlyCurses = true)
                 val washable = minOf(curses, available / perCurse)
-                removed = if (washable > 0) removeEnchantments(stack, washable, onlyCurses = true) else 0
+                // 诅咒走熔融金这条路，产出的是诅咒金液体，所以只用"洗掉几条"，不看液态魔咒量
+                removed = if (washable > 0) {
+                    removeEnchantments(stack, washable, onlyCurses = true).count
+                } else {
+                    0
+                }
                 removed > 0
             }
             if (removed <= 0) continue
@@ -188,13 +151,35 @@ object CauldronItemReactions {
 
     // ───────────────────────── 浮霜液体：洗掉全部附魔 ─────────────────────────
 
+    /**
+     * 一条附魔值多少液态魔咒。
+     *
+     * 口径照抄上游 `TranscendenceGrindstoneMenu#getLiquidAmount`：**`2^(等级-1)` mB**
+     * （1 级 = 1、2 级 = 2、3 级 = 4、4 级 = 8、5 级 = 16……）——等级越高，洗出来的液态魔咒越多。
+     * 这正是用户说的"液态魔咒若干"。
+     *
+     * ⚠️ 魔改魔咒可能有很高的 `maxLevel`，必须封顶：这里最多 `2^16 = 65536 mB`
+     * （大型炼药锅总容量 8 × 64000 = 512000 mB），免得算出天文数字或移位溢出。
+     */
+    private fun liquidAmountFor(level: Int): Int {
+        if (level <= 0) return 0
+        return 1 shl minOf(level - 1, MAX_LIQUID_ENCHANTMENT_SHIFT)
+    }
+
+    /** 一次洗附魔的结果：洗掉几条 + 一共产出多少 mB 液态魔咒 */
+    private data class WashResult(val count: Int, val fluidMb: Int) {
+        companion object {
+            val NONE = WashResult(0, 0)
+        }
+    }
+
     private fun washEnchantmentsWithFrost(
         fluids: LargeCauldronFluidHandler,
         input: LargeCauldronInputHandler,
     ) {
         val frost = AddonFluids.byName("frost_fluid")?.source ?: return
         val perEnchantment = AnvilCraftFluid.CONFIG.frostFluidPerEnchantment.coerceAtLeast(1)
-        // 洗下来的附魔变成上游的"液态附魔"（不挂具体魔咒组件）
+        // 洗下来的附魔变成上游的"液态魔咒"（按用户口径不挂具体魔咒组件）
         val liquidEnchantment = ModFluids.LIQUID_ENCHANTMENT.get()
 
         var available = fluids.amountOf(frost)
@@ -203,27 +188,31 @@ object CauldronItemReactions {
         for (slot in 0 until input.slots) {
             if (available < perEnchantment) break
 
-            var removed = 0
+            var washed = WashResult.NONE
             input.mutateStackInSlot(slot) { stack ->
                 val enchantments = countEnchantments(stack, onlyCurses = false)
                 val washable = minOf(enchantments, available / perEnchantment)
-                removed = if (washable > 0) removeEnchantments(stack, washable, onlyCurses = false) else 0
-                removed > 0
+                washed = if (washable > 0) {
+                    removeEnchantments(stack, washable, onlyCurses = false)
+                } else {
+                    WashResult.NONE
+                }
+                washed.count > 0
             }
-            if (removed <= 0) continue
+            if (washed.count <= 0) continue
 
-            val cost = removed * perEnchantment
+            // 扣量按"每条附魔"（浮霜配置值），产出量按上游的等级公式
+            val cost = washed.count * perEnchantment
             available -= fluids.consume(frost, cost)
-            // 洗下来的附魔按同量变成液态附魔
-            fluids.fill(FluidStack(liquidEnchantment, cost), IFluidHandler.FluidAction.EXECUTE)
+            fluids.fill(FluidStack(liquidEnchantment, washed.fluidMb), IFluidHandler.FluidAction.EXECUTE)
             turnEmptyEnchantedBookIntoBook(input, slot)
             AnvilCraftFluid.LOGGER.debug(
                 "Frost wash: removed {} enchantment(s) in slot {}, consumed {} mB frost fluid " +
                     "and produced {} mB liquid enchantment",
-                removed,
+                washed.count,
                 slot,
                 cost,
-                cost,
+                washed.fluidMb,
             )
         }
     }
@@ -277,14 +266,22 @@ object CauldronItemReactions {
     }
 
     /**
-     * 从物品上摘掉最多 [amount] 条附魔，返回实际摘掉的条数。
+     * 从物品上摘掉最多 [amount] 条附魔。
      *
      * 照上游 `TranscendenceGrindstoneMenu#removeCurses` 的写法：
      * 遍历不可变的 `getOrDefault(...)`，在 `ItemEnchantments.Mutable` 副本上删，
      * 最后 `set` 回去。
+     *
+     * 返回 [WashResult]：既给出**摘掉几条**（用来算浮霜耗量），也给出这些附魔
+     * 一共值多少 **mB 液态魔咒**（按 [liquidAmountFor] 的上游等级公式算）。
+     *
+     * ⚠️ 只能按"条"删，删不掉"某条附魔的一部分等级"——`RecipeResult` 与
+     * `ItemEnchantments.Mutable` 都没有那种操作。所以洗掉一条 5 级附魔 = 整条没了，
+     * 产出按它的等级算。
      */
-    private fun removeEnchantments(stack: ItemStack, amount: Int, onlyCurses: Boolean): Int {
+    private fun removeEnchantments(stack: ItemStack, amount: Int, onlyCurses: Boolean): WashResult {
         var removed = 0
+        var fluidMb = 0
         for (type in ENCHANTMENT_TYPES) {
             if (removed >= amount) break
             val current = stack.getOrDefault(type, ItemEnchantments.EMPTY)
@@ -295,12 +292,13 @@ object CauldronItemReactions {
             for (enchantment in current.keySet()) {
                 if (removed >= amount) break
                 if (onlyCurses && !enchantment.`is`(EnchantmentTags.CURSE)) continue
+                fluidMb += liquidAmountFor(current.getLevel(enchantment))
                 mutable.removeIf { it == enchantment }
                 removed++
                 changed = true
             }
             if (changed) stack.set(type, mutable.toImmutable())
         }
-        return removed
+        return WashResult(removed, fluidMb)
     }
 }

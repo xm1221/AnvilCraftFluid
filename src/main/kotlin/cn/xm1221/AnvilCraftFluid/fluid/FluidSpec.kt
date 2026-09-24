@@ -155,21 +155,16 @@ object AddonFluidSpecs {
     /**
      * 熔融钨。
      *
-     * 颜色来自用户给的十进制值 `383030`，对应十六进制 `0x5D836`；
-     * 这里补成完整的 `0xAARRGGBB`（`0xFF05D836`），alpha 必须是 `FF` 才有不透明效果。
+     * 颜色由用户给出：`#2a2422` → `0xFF2A2422`（深褐灰）。
      * 温度 3400 是全表最高（钨是熔点最高的金属，现实约 3422°C）。
      */
     val MOLTEN_TUNGSTEN = FluidSpec(
-        "molten_tungsten", argb(0xFF05D836), FluidFamily.METAL, temperature = 3400, lightLevel = 14,
+        "molten_tungsten", argb(0xFF2A2422), FluidFamily.METAL, temperature = 3400, lightLevel = 14,
     )
 
-    /**
-     * 熔融皇家钢。
-     *
-     * 颜色来自用户给的十进制值 `63766`，对应十六进制 `0xF916` → `0xFF00F916`。
-     */
+    /** 熔融皇家钢：用户给的 `#4c5459` → `0xFF4C5459`（青灰蓝） */
     val MOLTEN_ROYAL_STEEL = FluidSpec(
-        "molten_royal_steel", argb(0xFF00F916), FluidFamily.METAL, temperature = 500, lightLevel = 13,
+        "molten_royal_steel", argb(0xFF4C5459), FluidFamily.METAL, temperature = 500, lightLevel = 13,
     )
 
     val METALS: List<FluidSpec> = listOf(
