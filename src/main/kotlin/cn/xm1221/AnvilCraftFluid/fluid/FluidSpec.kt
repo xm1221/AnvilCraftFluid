@@ -167,12 +167,41 @@ object AddonFluidSpecs {
         "molten_royal_steel", argb(0xFF4C5459), FluidFamily.METAL, temperature = 500, lightLevel = 13,
     )
 
+    // ───────── AnvilCraft 的其余金属（用户要求"有矿石的金属"都要注册） ─────────
+    // 这 6 种在 AnvilCraft 里**只有深层矿石**（deepslate_<metal>_ore），没有普通矿石版本。
+
+    /** 熔融铅（铅矿 → `anvilcraft:deepslate_lead_ore`） */
+    val MOLTEN_LEAD = FluidSpec("molten_lead", argb(0xFF5A5F6E), FluidFamily.METAL, temperature = 350)
+
+    /** 熔融银（银矿 → `anvilcraft:deepslate_silver_ore`） */
+    val MOLTEN_SILVER = FluidSpec("molten_silver", argb(0xFFDDE3EA), FluidFamily.METAL, temperature = 1000)
+
+    /** 熔融锡（锡矿 → `anvilcraft:deepslate_tin_ore`） */
+    val MOLTEN_TIN = FluidSpec("molten_tin", argb(0xFFB9C0C7), FluidFamily.METAL, temperature = 250, lightLevel = 9)
+
+    /** 熔融锌（锌矿 → `anvilcraft:deepslate_zinc_ore`） */
+    val MOLTEN_ZINC = FluidSpec("molten_zinc", argb(0xFF9FB0C0), FluidFamily.METAL, temperature = 450)
+
+    /** 熔融钛（钛矿 → `anvilcraft:deepslate_titanium_ore`） */
+    val MOLTEN_TITANIUM = FluidSpec("molten_titanium", argb(0xFF6E6A8A), FluidFamily.METAL, temperature = 1700)
+
+    /** 熔融铀（铀矿 → `anvilcraft:deepslate_uranium_ore`） */
+    val MOLTEN_URANIUM = FluidSpec(
+        "molten_uranium", argb(0xFFB7D24A), FluidFamily.METAL, temperature = 1150, lightLevel = 14,
+    )
+
     val METALS: List<FluidSpec> = listOf(
         MOLTEN_IRON,
         MOLTEN_GOLD,
         MOLTEN_COPPER,
         MOLTEN_TUNGSTEN,
         MOLTEN_ROYAL_STEEL,
+        MOLTEN_LEAD,
+        MOLTEN_SILVER,
+        MOLTEN_TIN,
+        MOLTEN_ZINC,
+        MOLTEN_TITANIUM,
+        MOLTEN_URANIUM,
     )
 
     // ───────────────────── 功能流体（共用 SPECIAL 贴图） ─────────────────────

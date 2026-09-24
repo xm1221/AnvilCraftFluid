@@ -187,7 +187,7 @@ object AddonFluids {
             }
 
         // 打标签（Registrum 会同时给源流体与流动流体打上）
-        val tags = tagsFor(spec.family)
+        val tags = tagsFor(spec)
         if (tags.isNotEmpty()) builder = builder.tag(*tags.toTypedArray())
 
         if (!spec.placeable) {
@@ -275,10 +275,27 @@ object AddonFluids {
     private fun vanillaTexture(path: String): ResourceLocation =
         ResourceLocation.withDefaultNamespace(path)
 
-    /** 流体族 → 该进的标签列表：熔融族进 `#molten` + 族标签；功能流体只进 `#special` */
-    private fun tagsFor(family: FluidFamily): List<TagKey<Fluid>> = buildList {
-        if (family.molten) add(AddonFluidTags.MOLTEN)
-        family.familyTagPath?.let { add(AddonFluidTags.of(it)) }
+    /**
+     * 流体族 → 该进的标签列表：熔融族进 `#molten` + 族标签；功能流体只进 `#special`。
+     *
+     * 另有**跨族**的窄标签 [AddonFluidTags.ROYAL_STEEL_GEMS]：只有红/黄/蓝/绿四种宝石进，
+     * 因为熔融皇家钢的配方不接受石英与紫水晶（用户口径）。
+     *
+     * ⚠️ 那个名单**必须内联**，不能抽成 object 的 `val` 放在 [REGISTERED] 后面——
+     * object 的属性按声明顺序初始化，而 [REGISTERED] 初始化时就会调到这里，
+     * 那时后面的 `val` 还是 null，会直接 `ExceptionInInitializerError`（已踩过）。
+     */
+    private fun tagsFor(spec: FluidSpec): List<TagKey<Fluid>> = buildList {
+        if (spec.family.molten) add(AddonFluidTags.MOLTEN)
+        spec.family.familyTagPath?.let { add(AddonFluidTags.of(it)) }
+        // 红 / 黄 / 蓝 / 绿四种宝石（不含石英与紫水晶）——名单内联，避免初始化顺序问题
+        val royalSteelGems = setOf(
+            AddonFluidSpecs.MOLTEN_RUBY.name,
+            AddonFluidSpecs.MOLTEN_TOPAZ.name,
+            AddonFluidSpecs.MOLTEN_SAPPHIRE.name,
+            AddonFluidSpecs.MOLTEN_EMERALD.name,
+        )
+        if (spec.name in royalSteelGems) add(AddonFluidTags.ROYAL_STEEL_GEMS)
     }
 
     /**

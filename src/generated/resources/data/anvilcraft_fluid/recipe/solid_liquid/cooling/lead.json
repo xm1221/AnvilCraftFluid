@@ -1,0 +1,11 @@
+{
+  "type": "anvilcraft:solid_liquid",
+  "consume": 1000,
+  "fluid": "anvilcraft_fluid:molten_lead",
+  "ingredients": [],
+  "results": [
+    {
+      "id": "anvilcraft:lead_block"
+    }
+  ]
+}

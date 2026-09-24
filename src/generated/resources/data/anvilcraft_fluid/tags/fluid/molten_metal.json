@@ -9,6 +9,18 @@
     "anvilcraft_fluid:flowing_molten_tungsten",
     "anvilcraft_fluid:molten_tungsten",
     "anvilcraft_fluid:flowing_molten_royal_steel",
-    "anvilcraft_fluid:molten_royal_steel"
+    "anvilcraft_fluid:molten_royal_steel",
+    "anvilcraft_fluid:flowing_molten_lead",
+    "anvilcraft_fluid:molten_lead",
+    "anvilcraft_fluid:flowing_molten_silver",
+    "anvilcraft_fluid:molten_silver",
+    "anvilcraft_fluid:flowing_molten_tin",
+    "anvilcraft_fluid:molten_tin",
+    "anvilcraft_fluid:flowing_molten_zinc",
+    "anvilcraft_fluid:molten_zinc",
+    "anvilcraft_fluid:flowing_molten_titanium",
+    "anvilcraft_fluid:molten_titanium",
+    "anvilcraft_fluid:flowing_molten_uranium",
+    "anvilcraft_fluid:molten_uranium"
   ]
 }

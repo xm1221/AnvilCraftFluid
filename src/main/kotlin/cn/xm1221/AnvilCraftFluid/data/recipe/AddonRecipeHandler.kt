@@ -58,6 +58,7 @@ object AddonRecipeHandler {
         timeWarpRecipes(provider)
         fluidMixingRecipes(provider)
         multiFluidMixingRecipes(provider)
+        coolingRecipes(provider)
         solidLiquidRecipes(provider)
     }
 
@@ -80,7 +81,7 @@ object AddonRecipeHandler {
         val ruby = AddonFluids.byName("molten_ruby") ?: return
         val sapphire = AddonFluids.byName("molten_sapphire") ?: return
 
-        // 任意熔融宝石 + 钻石 + 熔融铁 → 熔融皇家钢
+        // 任意熔融宝石（红/黄/蓝/绿，不含石英与紫水晶）+ 钻石 + 熔融铁 → 熔融皇家钢
         AddonFluids.byName("molten_royal_steel")?.let { royalSteel ->
             multiFluid(
                 provider,
@@ -88,17 +89,26 @@ object AddonRecipeHandler {
                 items = listOf(ItemIngredientPredicate.Builder.item().of(Items.DIAMOND).build()),
                 results = emptyList(),
                 cauldron = HasCauldronSimple.fluid(iron.source).consume(BUCKET).build(),
-                extra = listOf(FluidRequirement.of(AddonFluidTags.MOLTEN_GEM, BUCKET)),
+                // ⚠️ 用窄标签（只有红/黄/蓝/绿四种），不是 MOLTEN_GEM——
+                //    熔融石英与熔融紫水晶**不能**炼皇家钢（用户拍板）
+                extra = listOf(FluidRequirement.of(AddonFluidTags.ROYAL_STEEL_GEMS, BUCKET)),
                 fluidResults = listOf(FluidStack(royalSteel.source, BUCKET)),
             )
         }
 
         // 熔融宝石 + 熔融金属 → 矿石
+        // ⚠️ AnvilCraft 的金属**只有深层矿石**，所以只有原版铁/金/铜有"普通矿石"那一档
         val ores = listOf(
             Triple("molten_iron", Blocks.DEEPSLATE_IRON_ORE, Blocks.IRON_ORE),
             Triple("molten_gold", Blocks.DEEPSLATE_GOLD_ORE, Blocks.GOLD_ORE),
             Triple("molten_copper", Blocks.DEEPSLATE_COPPER_ORE, Blocks.COPPER_ORE),
             Triple("molten_tungsten", ModBlocks.DEEPSLATE_TUNGSTEN_ORE.get(), null),
+            Triple("molten_lead", ModBlocks.DEEPSLATE_LEAD_ORE.get(), null),
+            Triple("molten_silver", ModBlocks.DEEPSLATE_SILVER_ORE.get(), null),
+            Triple("molten_tin", ModBlocks.DEEPSLATE_TIN_ORE.get(), null),
+            Triple("molten_zinc", ModBlocks.DEEPSLATE_ZINC_ORE.get(), null),
+            Triple("molten_titanium", ModBlocks.DEEPSLATE_TITANIUM_ORE.get(), null),
+            Triple("molten_uranium", ModBlocks.DEEPSLATE_URANIUM_ORE.get(), null),
         )
         for ((metalName, deepslate, normal) in ores) {
             val metal = AddonFluids.byName(metalName) ?: continue
@@ -124,6 +134,70 @@ object AddonRecipeHandler {
                     fluidResults = emptyList(),
                 )
             }
+        }
+
+        // 绿宝石：熔融绿宝石 + 熔融蓝宝石 → 绿宝石矿；熔融绿宝石 + 熔融红宝石 → 深层绿宝石矿
+        AddonFluids.byName("molten_emerald")?.let { emerald ->
+            multiFluid(
+                provider,
+                "multi_fluid_mixing/emerald_ore",
+                items = emptyList(),
+                results = listOf(ChanceItemStack.of(Items.EMERALD_ORE, 1)),
+                cauldron = HasCauldronSimple.fluid(emerald.source).consume(BUCKET).build(),
+                extra = listOf(FluidRequirement.of(sapphire.source, BUCKET)),
+                fluidResults = emptyList(),
+            )
+            multiFluid(
+                provider,
+                "multi_fluid_mixing/deepslate_emerald_ore",
+                items = emptyList(),
+                results = listOf(ChanceItemStack.of(Items.DEEPSLATE_EMERALD_ORE, 1)),
+                cauldron = HasCauldronSimple.fluid(emerald.source).consume(BUCKET).build(),
+                extra = listOf(FluidRequirement.of(ruby.source, BUCKET)),
+                fluidResults = emptyList(),
+            )
+        }
+    }
+
+    // ───────────────────────── 冷却：一锅熔融流体 → 方块 ─────────────────────────
+
+    /**
+     * 「铁砧落到装有熔融流体的炼药锅（满）上时，产出对应的块」（用户要求）。
+     *
+     * 用现成的 `anvilcraft:solid_liquid`：**不写 `requires(...)`** 就是"只要锅里有这种流体"，
+     * 铁砧落下即把满锅（1000 mB）换成对应的方块。这正好是熔融配方的逆过程。
+     *
+     * ⚠️ 无物品输入的配方要靠 `HasCauldron` 谓词才会被大型炼药锅匹配（见
+     * `LargeCauldronBlockEntity#triggerOneRecipe` 的两条匹配路径），而 `solid_liquid`
+     * 自带该谓词，所以不用像自研类型那样额外补一个。
+     */
+    private fun coolingRecipes(provider: RegistrumRecipeProvider) {
+        val blockByFluid = listOf(
+            "molten_iron" to Blocks.IRON_BLOCK,
+            "molten_gold" to Blocks.GOLD_BLOCK,
+            "molten_copper" to Blocks.COPPER_BLOCK,
+            "molten_tungsten" to ModBlocks.TUNGSTEN_BLOCK.get(),
+            "molten_royal_steel" to ModBlocks.ROYAL_STEEL_BLOCK.get(),
+            "molten_lead" to ModBlocks.LEAD_BLOCK.get(),
+            "molten_silver" to ModBlocks.SILVER_BLOCK.get(),
+            "molten_tin" to ModBlocks.TIN_BLOCK.get(),
+            "molten_zinc" to ModBlocks.ZINC_BLOCK.get(),
+            "molten_titanium" to ModBlocks.TITANIUM_BLOCK.get(),
+            "molten_uranium" to ModBlocks.URANIUM_BLOCK.get(),
+            "molten_ruby" to ModBlocks.RUBY_BLOCK.get(),
+            "molten_sapphire" to ModBlocks.SAPPHIRE_BLOCK.get(),
+            "molten_topaz" to ModBlocks.TOPAZ_BLOCK.get(),
+            "molten_emerald" to Blocks.EMERALD_BLOCK,
+            "molten_quartz" to Blocks.QUARTZ_BLOCK,
+            "molten_amethyst" to Blocks.AMETHYST_BLOCK,
+        )
+        for ((fluidName, block) in blockByFluid) {
+            val fluid = AddonFluids.byName(fluidName) ?: continue
+            SolidLiquidRecipe.builder()
+                .cauldron(fluid.source)
+                .consume(BUCKET)
+                .result(block)
+                .save(provider, AnvilCraftFluid.of("solid_liquid/cooling/${fluidName.removePrefix("molten_")}"))
         }
     }
 
@@ -168,6 +242,12 @@ object AddonRecipeHandler {
             "molten_copper" to Blocks.COPPER_BLOCK,
             "molten_tungsten" to ModBlocks.TUNGSTEN_BLOCK.get(),
             "molten_royal_steel" to ModBlocks.ROYAL_STEEL_BLOCK.get(),
+            "molten_lead" to ModBlocks.LEAD_BLOCK.get(),
+            "molten_silver" to ModBlocks.SILVER_BLOCK.get(),
+            "molten_tin" to ModBlocks.TIN_BLOCK.get(),
+            "molten_zinc" to ModBlocks.ZINC_BLOCK.get(),
+            "molten_titanium" to ModBlocks.TITANIUM_BLOCK.get(),
+            "molten_uranium" to ModBlocks.URANIUM_BLOCK.get(),
             "molten_ruby" to ModBlocks.RUBY_BLOCK.get(),
             "molten_sapphire" to ModBlocks.SAPPHIRE_BLOCK.get(),
             "molten_topaz" to ModBlocks.TOPAZ_BLOCK.get(),

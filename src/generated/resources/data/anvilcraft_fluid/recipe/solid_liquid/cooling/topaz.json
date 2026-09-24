@@ -1,0 +1,11 @@
+{
+  "type": "anvilcraft:solid_liquid",
+  "consume": 1000,
+  "fluid": "anvilcraft_fluid:molten_topaz",
+  "ingredients": [],
+  "results": [
+    {
+      "id": "anvilcraft:topaz_block"
+    }
+  ]
+}

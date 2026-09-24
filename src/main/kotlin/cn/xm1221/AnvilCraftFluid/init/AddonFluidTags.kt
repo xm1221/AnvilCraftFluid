@@ -34,6 +34,14 @@ object AddonFluidTags {
     /** 功能流体（浮霜 / 余烬 / 诅咒金） */
     val SPECIAL: TagKey<Fluid> = of("special")
 
+    /**
+     * 能用来炼**熔融皇家钢**的宝石（用户口径：只接受红、黄、蓝、绿四种）。
+     *
+     * 刻意比 [MOLTEN_GEM] 窄——石英与紫水晶**不算**：
+     * 它们一个太普通、一个是原版碎片，进不了皇家钢的配方。
+     */
+    val ROYAL_STEEL_GEMS: TagKey<Fluid> = of("royal_steel_gems")
+
     /** 按路径取（或新建）本模组的流体标签 */
     fun of(path: String): TagKey<Fluid> =
         TagKey.create(Registries.FLUID, AnvilCraftFluid.of(path))

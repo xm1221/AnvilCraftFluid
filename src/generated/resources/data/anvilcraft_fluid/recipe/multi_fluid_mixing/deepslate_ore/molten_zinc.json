@@ -1,0 +1,18 @@
+{
+  "type": "anvilcraft_fluid:multi_fluid_mixing",
+  "cauldron": {
+    "consume": 1000,
+    "fluid": "anvilcraft_fluid:molten_ruby"
+  },
+  "extra_fluids": [
+    {
+      "fluid": "anvilcraft_fluid:molten_zinc"
+    }
+  ],
+  "ingredients": [],
+  "results": [
+    {
+      "id": "anvilcraft:deepslate_zinc_ore"
+    }
+  ]
+}
