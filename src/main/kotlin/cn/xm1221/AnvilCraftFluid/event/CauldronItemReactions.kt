@@ -160,8 +160,10 @@ object CauldronItemReactions {
      *
      * ⚠️ 魔改魔咒可能有很高的 `maxLevel`，必须封顶：这里最多 `2^16 = 65536 mB`
      * （大型炼药锅总容量 8 × 64000 = 512000 mB），免得算出天文数字或移位溢出。
+     *
+     * 公开给 JEI 展示用（`client/AddonJeiEntries`），保证显示的数值与实际逻辑同一个来源。
      */
-    private fun liquidAmountFor(level: Int): Int {
+    fun liquidAmountFor(level: Int): Int {
         if (level <= 0) return 0
         return 1 shl minOf(level - 1, MAX_LIQUID_ENCHANTMENT_SHIFT)
     }

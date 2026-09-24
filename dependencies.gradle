@@ -8,4 +8,8 @@ dependencies {
     // AnvilCraft
     implementation(libs.anvilcraft) { transitive = false }
     interfaceInjectionData(libs.anvilcraft) { transitive = false }
+
+    // JEI：**只编译期**。用来注册伪配方（浮霜洗附魔 / 熔融金洗诅咒的展示）。
+    // 不写 runtimeOnly——运行时的 JEI 由玩家自己装进 mods，多给一份会撞车。
+    compileOnly(libs.jei.api)
 }

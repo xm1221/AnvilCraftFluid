@@ -52,6 +52,12 @@
   "anvilcraft_fluid.configuration.gold_fluid_per_curse.tooltip": "熔融金每洗掉 1 条诅咒附魔消耗的 mB，并按同量产出诅咒金液体",
   "anvilcraft_fluid.configuration.frost_fluid_per_enchantment": "浮霜液体洗附魔耗量",
   "anvilcraft_fluid.configuration.frost_fluid_per_enchantment.tooltip": "浮霜液体每洗掉 1 条附魔消耗的 mB；洗下来的魔咒按上游公式 2^(等级-1) mB 变成液态魔咒",
+  "gui.anvilcraft_fluid.category.cauldron_reaction": "炼药锅流体反应",
+  "gui.anvilcraft_fluid.cauldron_reaction.frost.0": "洗掉物品上的全部附魔",
+  "gui.anvilcraft_fluid.cauldron_reaction.frost.1": "每条按 2^(等级-1) mB 产出液态魔咒",
+  "gui.anvilcraft_fluid.cauldron_reaction.curse.0": "洗掉物品上的诅咒附魔",
+  "gui.anvilcraft_fluid.cauldron_reaction.curse.1": "每条按同量产出诅咒金液体",
+  "gui.anvilcraft_fluid.info.ember_fluid": "物品站在余烬液体里会被重铸修复：比岩浆快，且不消耗液体本身",
   "anvilcraft_fluid.configuration.section.anvilcraft.fluid.common.toml": "铁砧工艺：流体扩展 通用配置",
   "anvilcraft_fluid.configuration.section.anvilcraft.fluid.common.toml.title": "铁砧工艺：流体扩展 通用配置",
   "anvilcraft_fluid.configuration.title": "铁砧工艺：流体扩展 配置"

@@ -21,4 +21,11 @@ repositories {
             includeGroup "com.tterrag.registrate"
         }
     }
+    maven { // JEI（编译期用，写 JEI 伪配方展示）
+        name = "BlameJared"
+        url = "https://maven.blamejared.com"
+        content {
+            includeGroup "mezz.jei"
+        }
+    }
 }
