@@ -1,7 +1,7 @@
 {
   "type": "anvilcraft_fluid:multi_fluid_mixing",
   "cauldron": {
-    "consume": 1000,
+    "consume": 10,
     "fluid": "anvilcraft_fluid:molten_ruby"
   },
   "extra_fluids": [

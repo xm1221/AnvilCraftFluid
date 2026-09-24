@@ -118,7 +118,7 @@ object AddonRecipeHandler {
                 "multi_fluid_mixing/deepslate_ore/$metalName",
                 items = emptyList(),
                 results = listOf(ChanceItemStack.of(deepslate, 1)),
-                cauldron = HasCauldronSimple.fluid(ruby.source).consume(BUCKET).build(),
+                cauldron = HasCauldronSimple.fluid(ruby.source).consume(GEM_CATALYST).build(),
                 extra = listOf(FluidRequirement.of(metal.source, BUCKET)),
                 fluidResults = emptyList(),
             )
@@ -129,7 +129,7 @@ object AddonRecipeHandler {
                     "multi_fluid_mixing/ore/$metalName",
                     items = emptyList(),
                     results = listOf(ChanceItemStack.of(normal, 1)),
-                    cauldron = HasCauldronSimple.fluid(sapphire.source).consume(BUCKET).build(),
+                    cauldron = HasCauldronSimple.fluid(sapphire.source).consume(GEM_CATALYST).build(),
                     extra = listOf(FluidRequirement.of(metal.source, BUCKET)),
                     fluidResults = emptyList(),
                 )
@@ -144,7 +144,7 @@ object AddonRecipeHandler {
                 items = emptyList(),
                 results = listOf(ChanceItemStack.of(Items.EMERALD_ORE, 1)),
                 cauldron = HasCauldronSimple.fluid(emerald.source).consume(BUCKET).build(),
-                extra = listOf(FluidRequirement.of(sapphire.source, BUCKET)),
+                extra = listOf(FluidRequirement.of(sapphire.source, GEM_CATALYST)),
                 fluidResults = emptyList(),
             )
             multiFluid(
@@ -153,7 +153,7 @@ object AddonRecipeHandler {
                 items = emptyList(),
                 results = listOf(ChanceItemStack.of(Items.DEEPSLATE_EMERALD_ORE, 1)),
                 cauldron = HasCauldronSimple.fluid(emerald.source).consume(BUCKET).build(),
-                extra = listOf(FluidRequirement.of(ruby.source, BUCKET)),
+                extra = listOf(FluidRequirement.of(ruby.source, GEM_CATALYST)),
                 fluidResults = emptyList(),
             )
         }
@@ -369,6 +369,9 @@ object AddonRecipeHandler {
                 .save(provider, AnvilCraftFluid.of("solid_liquid/iron_block_from_molten_iron"))
         }
     }
+
+    /** 宝石催化剂：产矿石的配方里红/蓝宝石只吃 10 mB（用户口径） */
+    private const val GEM_CATALYST = 10
 
     /** 一桶 = 1000 mB */
     private const val BUCKET = 1000
