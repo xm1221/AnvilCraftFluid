@@ -2,7 +2,6 @@
 navigation:
   title: "铁砧工艺：流体拓展"
   icon: "anvilcraft_fluid:molten_iron_bucket"
-  position: 20
 ---
 
 # 铁砧工艺：流体拓展
