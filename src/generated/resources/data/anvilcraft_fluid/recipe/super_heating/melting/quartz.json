@@ -1,0 +1,14 @@
+{
+  "type": "anvilcraft:super_heating",
+  "fluid": [],
+  "ingredients": [
+    {
+      "count": 9,
+      "items": "minecraft:quartz"
+    }
+  ],
+  "transform": {
+    "amount": 1000,
+    "id": "anvilcraft_fluid:molten_quartz"
+  }
+}

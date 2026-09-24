@@ -3,76 +3,176 @@ package cn.xm1221.AnvilCraftFluid.data.recipe
 import cn.xm1221.AnvilCraftFluid.AnvilCraftFluid
 import cn.xm1221.AnvilCraftFluid.init.AddonFluids
 import dev.anvilcraft.lib.v2.registrum.providers.RegistrumRecipeProvider
+import dev.dubhe.anvilcraft.init.block.ModBlocks
 import dev.dubhe.anvilcraft.recipe.FluidMixingRecipe
 import dev.dubhe.anvilcraft.recipe.anvil.wrap.SolidLiquidRecipe
+import dev.dubhe.anvilcraft.recipe.anvil.wrap.SuperHeatingRecipe
+import dev.dubhe.anvilcraft.recipe.anvil.wrap.TimeWarpRecipe
 import net.minecraft.world.item.Items
+import net.minecraft.world.level.ItemLike
+import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.Blocks
 
 /**
  * 配方 datagen。
  *
- * ## 两种配方机制（都跑在 AnvilCraft 的机器上）
+ * ## 四套机制（都跑在 AnvilCraft 的机器上，各自能表达的东西不一样）
  *
- * - **`anvilcraft:fluid_mixing`（多流体混合）**：**大型炼药锅**在铁砧撞击时执行，
- *   `LargeCauldronBlockEntity#tryProcessFluidMixingRecipe` 用 `getAllRecipesFor` 全量遍历，
- *   **不筛命名空间**，所以本模组的配方能直接生效；JEI 侧也由 AnvilCraft 的
- *   `FluidReactionCategory` / `SolidLiquidCategory` 自动收录，无需引入 JEI 依赖。
- * - **`anvilcraft:solid_liquid`（固液反应）**：炼药锅里有指定流体 + 上方有物品，
- *   铁砧落下时把物品转成产物（`consume` 指定消耗多少 mB）。本模组的
- *   熔融金属/宝石就走这条路。
+ * | 类型 | 输入 | 输出 | 本模组用来做什么 |
+ * | --- | --- | --- | --- |
+ * | `anvilcraft:super_heating` 高温熔炼 | **1 种锅里流体** + 物品 | 物品 / 流体（`.transform(锅, mB)`） | **熔融**：方块或 9 物品 → 一桶熔融流体 |
+ * | `anvilcraft:time_warp` 时移 | **1 种锅里流体** + 物品 | 物品 / 流体 | 下界合金 → 远古残骸 |
+ * | `anvilcraft:fluid_mixing` 多流体混合 | **多种**流体（大型炼药锅，铁砧砸） | 物品 / 流体 | 熔融黄玉 + 熔融铁 → 磁铁块 |
+ * | `anvilcraft:solid_liquid` 固液反应 | **1 种锅里流体** + 物品 | 物品 / 流体 | 熔融流体 + 材料 → 方块 |
+ *
+ * ## ⚠️ 上限：锅+物品类的配方**只能有一种流体**
+ *
+ * `HasCauldronSimple#fluid` 是**单个** `FluidStackPredicate`——所以"时移/固液/高温"
+ * 都做不出"两种流体"的配方。两种流体只能走 `fluid_mixing`（但它**不能吃物品**），
+ * 或者写成代码反应（像浮霜那样，见 `event/CauldronItemReactions`）。
+ * 这就是"熔融宝石 + 钻石 + 熔融铁 → 熔融皇家钢"（两流体 + 一物品）无法用数据配方表达的原因。
  *
  * ## ⚠️ 必须用 `save(provider, ResourceLocation)`
  *
  * `AbstractRecipeBuilder#save(RecipeOutput, String)` 内部是
  * `AnvilCraft.of(id).withPrefix(getType() + "/")`——**命名空间被硬编码成 `anvilcraft`**。
- * 附属模组必须传自己的 [net.minecraft.resources.ResourceLocation]，
- * 否则配方会写进上游命名空间并与之冲突。
+ * 附属模组必须传自己的 [net.minecraft.resources.ResourceLocation]。
  *
  * ## ⚠️ 流体一律用 `RegisteredFluid.source`
  *
  * Registrum 的 `FluidEntry.get()` 返回的是 `flowing_<name>`，源流体在 `getSource()` 上；
- * 用错会写出永远匹配不上的 id（锅/桶里装的都是源流体）。
+ * 用错会写出永远匹配不上的 id。另外 `fluid.getSource<T>()` 是**无检查强转**，
+ * 千万别再写 `getSource<BaseFlowingFluid.Flowing>()`（会崩）。
  */
 object AddonRecipeHandler {
 
     fun init(provider: RegistrumRecipeProvider) {
+        meltingRecipes(provider)
+        timeWarpRecipes(provider)
         fluidMixingRecipes(provider)
         solidLiquidRecipes(provider)
     }
 
-    // ───────────────────── 多流体混合（大型炼药锅） ─────────────────────
+    // ───────────────────────── 熔融：方块/物品 → 一桶流体 ─────────────────────────
 
+    /**
+     * 「一个金属或宝石块熔融得到一桶对应流体」。
+     *
+     * 用**高温熔炼**（`super_heating`）+ `.transform(我们的锅方块, 1000)`：
+     * 上游的"石头 → 熔岩"就是这么写的（`super_heating/lava_from_cobblestone`，
+     * 4 石头 + 石灰粉 + `.transform(Blocks.LAVA_CAULDRON, 1000)`），
+     * 所以这里照抄同一形状——铁砧砸下去，锅里的东西换成 1000 mB 我们的熔融流体。
+     *
+     * ⚠️ `transform(锅方块, mB)` 里的锅方块靠 `WrapUtils.cauldron2Fluid` 反查流体，
+     * 因此**锅的命名必须符合 `<流体名>_cauldron`**——这条硬规则再一次生效。
+     *
+     * 石英与紫水晶按用户口径是**九个物品**（不是方块）：9 石英 → 熔融石英、
+     * 9 紫水晶碎片 → 熔融紫水晶。
+     */
+    private fun meltingRecipes(provider: RegistrumRecipeProvider) {
+        // 金属块 / 宝石块 → 1000 mB
+        val blockInputs: List<Pair<String, Block>> = listOf(
+            "molten_iron" to Blocks.IRON_BLOCK,
+            "molten_gold" to Blocks.GOLD_BLOCK,
+            "molten_copper" to Blocks.COPPER_BLOCK,
+            "molten_tungsten" to ModBlocks.TUNGSTEN_BLOCK.get(),
+            "molten_royal_steel" to ModBlocks.ROYAL_STEEL_BLOCK.get(),
+            "molten_ruby" to ModBlocks.RUBY_BLOCK.get(),
+            "molten_sapphire" to ModBlocks.SAPPHIRE_BLOCK.get(),
+            "molten_topaz" to ModBlocks.TOPAZ_BLOCK.get(),
+            "molten_emerald" to Blocks.EMERALD_BLOCK,
+        )
+        for ((fluidName, block) in blockInputs) {
+            meltingRecipe(provider, fluidName, block, 1)
+        }
+
+        // 石英 / 紫水晶：九个物品
+        meltingRecipe(provider, "molten_quartz", Items.QUARTZ, 9)
+        meltingRecipe(provider, "molten_amethyst", Items.AMETHYST_SHARD, 9)
+    }
+
+    /** 单条熔融配方：`count` 个 [input] → 1000 mB [fluidName] */
+    private fun meltingRecipe(
+        provider: RegistrumRecipeProvider,
+        fluidName: String,
+        input: ItemLike,
+        count: Int,
+    ) {
+        val fluid = AddonFluids.byName(fluidName) ?: return
+        SuperHeatingRecipe.builder()
+            .requires(input, count)
+            .transform(fluid.cauldron.get(), BUCKET)
+            .save(provider, AnvilCraftFluid.of("super_heating/melting/${fluidName.removePrefix("molten_")}"))
+    }
+
+    // ───────────────────────── 时移：下界合金 → 远古残骸 ─────────────────────────
+
+    /**
+     * 「下界合金锭 + 熔岩 —时移— 远古残骸」
+     * 与「下界合金碎片 + 熔融钨 —时移— 远古残骸」。
+     *
+     * 这是上游那条过程配方的流体版：上游是"钨块 + 下界合金碎片 → 注入 → 假时移 → 远古残骸"
+     * （`ProceduralProcessRecipeLoader`），这里换成时移 + 我们的熔融钨。
+     */
+    private fun timeWarpRecipes(provider: RegistrumRecipeProvider) {
+        TimeWarpRecipe.builder()
+            .fluid(Blocks.LAVA_CAULDRON)
+            .consume(BUCKET)
+            .requires(Items.NETHERITE_INGOT)
+            .result(Items.ANCIENT_DEBRIS)
+            .save(provider, AnvilCraftFluid.of("time_warp/ancient_debris_from_netherite_ingot"))
+
+        val tungsten = AddonFluids.byName("molten_tungsten") ?: return
+        TimeWarpRecipe.builder()
+            .fluid(tungsten.cauldron.get())
+            .consume(BUCKET)
+            .requires(Items.NETHERITE_SCRAP)
+            .result(Items.ANCIENT_DEBRIS)
+            .save(provider, AnvilCraftFluid.of("time_warp/ancient_debris_from_molten_tungsten"))
+    }
+
+    // ───────────────────── 多流体混合（大型炼药锅 + 铁砧） ─────────────────────
+
+    /**
+     * 大型炼药锅在铁砧撞击时执行（`LargeCauldronBlockEntity#tryProcessFluidMixingRecipe`，
+     * 用 `getAllRecipesFor` 全量遍历、**不筛命名空间**，所以本模组的配方能直接生效）。
+     *
+     * - 熔融铁 + 熔融红宝石 → 熔融皇家钢（待按新口径修订：用户要"任意熔融宝石 + 钻石 + 熔融铁"，
+     *   而 `fluid_mixing` 吃不了物品，需要另想办法）
+     * - 熔融黄玉 10 mB + 熔融铁 1000 mB → 磁铁块
+     */
     private fun fluidMixingRecipes(provider: RegistrumRecipeProvider) {
         val iron = AddonFluids.byName("molten_iron") ?: return
         val ruby = AddonFluids.byName("molten_ruby") ?: return
-        val royalSteel = AddonFluids.byName("molten_royal_steel") ?: return
+        val royalSteel = AddonFluids.byName("molten_royal_steel")
 
-        // 熔融铁 + 熔融红宝石 → 熔融皇家钢
-        FluidMixingRecipe.builder()
-            .requires(iron.source, 1000)
-            .requires(ruby.source, 1000)
-            .result(royalSteel.source, 1000)
-            .save(provider, AnvilCraftFluid.of("fluid_mixing/molten_royal_steel"))
+        if (royalSteel != null) {
+            FluidMixingRecipe.builder()
+                .requires(iron.source, BUCKET)
+                .requires(ruby.source, BUCKET)
+                .result(royalSteel.source, BUCKET)
+                .save(provider, AnvilCraftFluid.of("fluid_mixing/molten_royal_steel"))
+        }
+
+        // 熔融黄玉 10 mB + 熔融铁 1000 mB → 磁铁块（用户指定量）
+        AddonFluids.byName("molten_topaz")?.let { topaz ->
+            FluidMixingRecipe.builder()
+                .requires(topaz.source, 10)
+                .requires(iron.source, BUCKET)
+                .result(ModBlocks.MAGNET_BLOCK.get(), 1)
+                .save(provider, AnvilCraftFluid.of("fluid_mixing/magnet_block"))
+        }
     }
 
     // ───────────────────── 固液反应（炼药锅 + 铁砧） ─────────────────────
 
+    /** 熔融流体 + 材料 → 方块（与"熔融"方向相反：把熔融液浇回方块） */
     private fun solidLiquidRecipes(provider: RegistrumRecipeProvider) {
-        // 熔融钨 + 下界合金碎片 → 远古残骸
-        AddonFluids.byName("molten_tungsten")?.let { tungsten ->
-            SolidLiquidRecipe.builder()
-                .cauldron(tungsten.source)
-                .consume(1000)
-                .requires(Items.NETHERITE_SCRAP)
-                .result(Items.ANCIENT_DEBRIS)
-                .save(provider, AnvilCraftFluid.of("solid_liquid/ancient_debris_from_molten_tungsten"))
-        }
-
         // 熔融石英 + 下界石英 → 石英块
         AddonFluids.byName("molten_quartz")?.let { quartz ->
             SolidLiquidRecipe.builder()
                 .cauldron(quartz.source)
-                .consume(1000)
+                .consume(BUCKET)
                 .requires(Items.QUARTZ)
                 .result(Blocks.QUARTZ_BLOCK)
                 .save(provider, AnvilCraftFluid.of("solid_liquid/quartz_block_from_molten_quartz"))
@@ -82,20 +182,23 @@ object AddonRecipeHandler {
         AddonFluids.byName("molten_emerald")?.let { emerald ->
             SolidLiquidRecipe.builder()
                 .cauldron(emerald.source)
-                .consume(1000)
+                .consume(BUCKET)
                 .requires(Items.EMERALD)
                 .result(Blocks.EMERALD_BLOCK)
                 .save(provider, AnvilCraftFluid.of("solid_liquid/emerald_block_from_molten_emerald"))
         }
 
-        // 熔融铁 + 铁锭 → 铁块（基础示例，也用来验证矿物熔融体系）
+        // 熔融铁 + 铁锭 ×9 → 铁块
         AddonFluids.byName("molten_iron")?.let { iron ->
             SolidLiquidRecipe.builder()
                 .cauldron(iron.source)
-                .consume(1000)
+                .consume(BUCKET)
                 .requires(Items.IRON_INGOT, 9)
                 .result(Blocks.IRON_BLOCK)
                 .save(provider, AnvilCraftFluid.of("solid_liquid/iron_block_from_molten_iron"))
         }
     }
+
+    /** 一桶 = 1000 mB */
+    private const val BUCKET = 1000
 }

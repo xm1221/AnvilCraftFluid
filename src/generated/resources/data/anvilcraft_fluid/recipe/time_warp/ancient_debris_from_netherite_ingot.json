@@ -1,0 +1,15 @@
+{
+  "type": "anvilcraft:time_warp",
+  "consume": 1000,
+  "fluid": "minecraft:lava",
+  "ingredients": [
+    {
+      "items": "minecraft:netherite_ingot"
+    }
+  ],
+  "results": [
+    {
+      "id": "minecraft:ancient_debris"
+    }
+  ]
+}

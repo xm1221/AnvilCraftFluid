@@ -1,0 +1,19 @@
+{
+  "type": "anvilcraft:fluid_mixing",
+  "ingredients": [
+    {
+      "amount": 10,
+      "fluid": "anvilcraft_fluid:molten_topaz"
+    },
+    {
+      "amount": 1000,
+      "fluid": "anvilcraft_fluid:molten_iron"
+    }
+  ],
+  "results": [
+    {
+      "count": 1,
+      "id": "anvilcraft:magnet_block"
+    }
+  ]
+}

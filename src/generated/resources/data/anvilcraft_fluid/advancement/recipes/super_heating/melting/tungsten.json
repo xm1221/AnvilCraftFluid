@@ -3,7 +3,7 @@
   "criteria": {
     "has_the_recipe": {
       "conditions": {
-        "recipe": "anvilcraft_fluid:solid_liquid/ancient_debris_from_molten_tungsten"
+        "recipe": "anvilcraft_fluid:super_heating/melting/tungsten"
       },
       "trigger": "minecraft:recipe_unlocked"
     }
@@ -15,7 +15,7 @@
   ],
   "rewards": {
     "recipes": [
-      "anvilcraft_fluid:solid_liquid/ancient_debris_from_molten_tungsten"
+      "anvilcraft_fluid:super_heating/melting/tungsten"
     ]
   }
 }

@@ -1,0 +1,13 @@
+{
+  "type": "anvilcraft:super_heating",
+  "fluid": [],
+  "ingredients": [
+    {
+      "items": "anvilcraft:ruby_block"
+    }
+  ],
+  "transform": {
+    "amount": 1000,
+    "id": "anvilcraft_fluid:molten_ruby"
+  }
+}

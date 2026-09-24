@@ -1,5 +1,5 @@
 {
-  "type": "anvilcraft:solid_liquid",
+  "type": "anvilcraft:time_warp",
   "consume": 1000,
   "fluid": "anvilcraft_fluid:molten_tungsten",
   "ingredients": [
