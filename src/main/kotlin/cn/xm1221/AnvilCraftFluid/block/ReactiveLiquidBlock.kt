@@ -1,7 +1,9 @@
 package cn.xm1221.AnvilCraftFluid.block
 
+import cn.xm1221.AnvilCraftFluid.fluid.WaterReactions
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.tags.FluidTags
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.Block
@@ -13,7 +15,9 @@ import net.neoforged.neoforge.event.EventHooks
 /**
  * 会与水发生凝固反应的液体方块。
  *
- * 碰水时把**自己所在的位置**换成 [reactionProduct]（熔融宝石遇水 → 岩石）。
+ * 碰水时把**自己所在的位置**换成产物（产物查 [WaterReactions]），
+ * 并且**区分源方块与流动流体**——两者的产物可以不同（例如熔融铁：
+ * 源方块 → 铁矿，流动 → 石头）。
  *
  * ## 为什么自己写方块而不是用 NeoForge 的 `FluidInteractionRegistry`
  *
@@ -28,20 +32,25 @@ import net.neoforged.neoforge.event.EventHooks
  *
  * | 玩家操作 | 触发路径 |
  * | --- | --- |
- * | 熔融宝石流到水边 | `onPlace`（新方块落下）+ `neighborChanged`（水那侧变化） |
- * | 熔融宝石放在水面上 | `onPlace`，检测到下方是水 |
- * | 往熔融宝石上浇水 | 水在其上方落位 → 我们的 `neighborChanged`，检测到上方是水 |
+ * | 熔融金属流到水边 | `onPlace`（新方块落下）+ `neighborChanged`（水那侧变化） |
+ * | 熔融金属放在水面上 | `onPlace`，检测到下方是水 |
+ * | 往熔融金属上浇水 | 水在其上方落位 → 我们的 `neighborChanged`，检测到上方是水 |
  *
  * 反应后水**保留**（与原版岩浆遇水成黑曜石的行为一致），只消耗我们自己这一格流体。
+ *
+ * 产物在**反应发生时**才解析（`WaterReactions` 里包了 lambda），
+ * 避免 mod 构造阶段碰上游方块条目的 `unbound value` 问题。
  */
 class ReactiveLiquidBlock(
     fluid: FlowingFluid,
     properties: Properties,
-    private val reactionProduct: Block,
 ) : LiquidBlock(fluid, properties) {
 
     // 不覆写 codec()：沿用 LiquidBlock 的 CODEC。
     // 我们的液体方块只在运行时由流体生成，不参与数据包里的方块定义。
+
+    /** 本方块对应哪个 [cn.xm1221.AnvilCraftFluid.fluid.FluidSpec.name]（≈ 注册名去掉命名空间） */
+    private val fluidName: String by lazy { BuiltInRegistries.FLUID.getKey(this.fluid).path }
 
     override fun onPlace(
         state: BlockState,
@@ -66,7 +75,7 @@ class ReactiveLiquidBlock(
         reactWithAdjacentWater(level, pos)
     }
 
-    /** 六向找水；找到就把自己这格换成产物方块 */
+    /** 六向找水；找到就按"源 / 流动"取产物，把自己这格换掉 */
     private fun reactWithAdjacentWater(level: Level, pos: BlockPos) {
         if (level.isClientSide) return
 
@@ -74,9 +83,17 @@ class ReactiveLiquidBlock(
         if (level.getBlockState(pos).block !== this) return
         if (!isTouchingWater(level, pos)) return
 
+        // 关键：源方块与流动流体的产物可以不同
+        val state = level.getFluidState(pos)
+        val product = if (state.isSource) {
+            WaterReactions.sourceProduct(fluidName)
+        } else {
+            WaterReactions.flowingProduct(fluidName)
+        } ?: return
+
         level.setBlockAndUpdate(
             pos,
-            EventHooks.fireFluidPlaceBlockEvent(level, pos, pos, reactionProduct.defaultBlockState()),
+            EventHooks.fireFluidPlaceBlockEvent(level, pos, pos, product.defaultBlockState()),
         )
         // 1501 = 水浇岩浆的"嘶——"+ 白烟反馈
         level.levelEvent(1501, pos, 0)

@@ -93,7 +93,7 @@ object AddonFluids {
      * （[AnvilCraftFluid] 的 `init` 块已调用）。
      */
     fun register() {
-        val reactive = REGISTERED.count { WaterReactions.productOf(it.spec.name) != null }
+        val reactive = REGISTERED.count { WaterReactions.isReactive(it.spec.name) }
         AnvilCraftFluid.LOGGER.debug(
             "Registered {} AnvilCraft fluid(s), {} of them water-reactive (custom ReactiveLiquidBlock)",
             REGISTERED.size,
@@ -179,16 +179,13 @@ object AddonFluids {
 
         if (!spec.placeable) {
             builder = builder.noBlock()
-        } else {
-            // 在水反应表里的流体用自定义液体方块：碰水凝固（六向检测，见 ReactiveLiquidBlock）
-            val waterProduct = WaterReactions.productOf(spec.name)
-            if (waterProduct != null) {
-                // ⚠️ 与 bucket 同理：自己调用 block() 后 defaultBlock 变 false，
-                //    FluidBuilder.register() 不再自动注册它，必须自己 .register()
-                builder.block { fluid, properties ->
-                    ReactiveLiquidBlock(fluid, properties, waterProduct)
-                }.register()
-            }
+        } else if (WaterReactions.isReactive(spec.name)) {
+            // 在水反应表里的流体用自定义液体方块：碰水凝固，且区分源/流动（见 ReactiveLiquidBlock）
+            // ⚠️ 与 bucket 同理：自己调用 block() 后 defaultBlock 变 false，
+            //    FluidBuilder.register() 不再自动注册它，必须自己 .register()
+            builder.block { fluid, properties ->
+                ReactiveLiquidBlock(fluid, properties)
+            }.register()
         }
 
         // 桶用**双层模型**（手写在 src/main/resources，父级 anvilcraft_fluid:item/bucket_template）：

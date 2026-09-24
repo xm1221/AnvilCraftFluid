@@ -1,42 +1,78 @@
 package cn.xm1221.AnvilCraftFluid.fluid
 
+import dev.dubhe.anvilcraft.init.block.ModBlocks
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.Blocks
+
+/**
+ * 一次遇水凝固的产物。
+ *
+ * **源方块与流动流体的结果可以不同**（用户要求）：
+ * - 宝石族：两者一致（保留原设计）；
+ * - 金属族：**源方块遇水 → 对应矿石**（一桶熔融铁浇进水里就是一块铁矿脉的雏形）；
+ *   流动的熔融金属遇水 → 冷却成石头（价值更低，对应上游"流动的熔融宝石只能凝成普通岩石"的设计语言）。
+ *
+ * 产物用**工厂函数**而不是方块本身：`ModBlocks.XXX.get()` 这类上游条目在
+ * mod 构造阶段（注册表未填充）取值会抛 `unbound value`，而本表是 object 的静态字段、
+ * 构造期就会被读到。包成 lambda 后，解析推迟到真正发生反应的运行时。
+ *
+ * @property sourceProduct 源方块遇水生成什么
+ * @property flowingProduct 流动流体遇水生成什么；null 表示流动流体不反应
+ */
+data class WaterReaction(
+    val sourceProduct: () -> Block,
+    val flowingProduct: (() -> Block)?,
+)
 
 /**
  * 流体遇水凝固反应表。
  *
  * 实现见 [cn.xm1221.AnvilCraftFluid.block.ReactiveLiquidBlock]：
- * 表里的流体注册时会用那个自定义液体方块，碰水就把自己那格换成 [TABLE] 里的方块。
+ * 表里的流体注册时会用那个自定义液体方块，碰水就把自己那格换成对应产物。
  *
- * 语义对齐上游 AnvilCraft 的 `melt_gem` + 水（`ModFluids.registerFluidInteractions`）
- * 以及原版岩浆 + 水：**反应后水保留**，只凝固自己这一格。
+ * 语义对齐上游 AnvilCraft 与原版岩浆 + 水：**反应后水保留**，只凝固自己这一格。
  *
- * 键是 [FluidSpec.name]；不在表里的流体（目前是全部熔融金属）遇水不发生任何事。
+ * 键是 [FluidSpec.name]；不在表里的流体（3 个功能流体、以及没有对应矿石的熔融皇家钢）
+ * 遇水不发生任何事。
  */
 object WaterReactions {
 
     /**
-     * 流体名 → 遇水生成的方块。
+     * 流体名 → 反应产物。
      *
-     * 对应开发计划里的"流体反应表"：
-     *
-     * | 熔融流体 | 水 → |
-     * | --- | --- |
-     * | 红宝石 | 花岗岩 |
-     * | 石英 | 闪长岩 |
-     * | 蓝宝石 / 黄玉 / 绿宝石 | 安山岩 |
-     * | 紫水晶 | 方解石 |
+     * | 熔融流体 | 源方块 + 水 | 流动 + 水 |
+     * | --- | --- | --- |
+     * | 红宝石 | 花岗岩 | 花岗岩 |
+     * | 石英 | 闪长岩 | 闪长岩 |
+     * | 蓝宝石 / 黄玉 / 绿宝石 | 安山岩 | 安山岩 |
+     * | 紫水晶 | 方解石 | 方解石 |
+     * | 铁 | **铁矿** | 石头 |
+     * | 金 | **金矿** | 石头 |
+     * | 铜 | **铜矿** | 石头 |
+     * | 钨 | **深层钨矿石**（上游只有这一种钨矿） | 石头 |
      */
-    val TABLE: Map<String, Block> = mapOf(
-        "molten_ruby" to Blocks.GRANITE,
-        "molten_quartz" to Blocks.DIORITE,
-        "molten_sapphire" to Blocks.ANDESITE,
-        "molten_topaz" to Blocks.ANDESITE,
-        "molten_emerald" to Blocks.ANDESITE,
-        "molten_amethyst" to Blocks.CALCITE,
+    val TABLE: Map<String, WaterReaction> = mapOf(
+        // ── 熔融宝石：源与流动一致（保留现状）──
+        "molten_ruby" to WaterReaction({ Blocks.GRANITE }, { Blocks.GRANITE }),
+        "molten_quartz" to WaterReaction({ Blocks.DIORITE }, { Blocks.DIORITE }),
+        "molten_sapphire" to WaterReaction({ Blocks.ANDESITE }, { Blocks.ANDESITE }),
+        "molten_topaz" to WaterReaction({ Blocks.ANDESITE }, { Blocks.ANDESITE }),
+        "molten_emerald" to WaterReaction({ Blocks.ANDESITE }, { Blocks.ANDESITE }),
+        "molten_amethyst" to WaterReaction({ Blocks.CALCITE }, { Blocks.CALCITE }),
+
+        // ── 熔融金属：源 → 对应矿石；流动 → 冷却成石头 ──
+        "molten_iron" to WaterReaction({ Blocks.IRON_ORE }, { Blocks.STONE }),
+        "molten_gold" to WaterReaction({ Blocks.GOLD_ORE }, { Blocks.STONE }),
+        "molten_copper" to WaterReaction({ Blocks.COPPER_ORE }, { Blocks.STONE }),
+        "molten_tungsten" to WaterReaction({ ModBlocks.DEEPSLATE_TUNGSTEN_ORE.get() }, { Blocks.STONE }),
     )
 
-    /** 该流体遇水生成什么方块；null 表示不反应 */
-    fun productOf(fluidName: String): Block? = TABLE[fluidName]
+    /** 该流体是否会遇水凝固（纯查表，mod 构造阶段可安全调用） */
+    fun isReactive(fluidName: String): Boolean = TABLE.containsKey(fluidName)
+
+    /** 源方块遇水的产物；null 表示不反应 */
+    fun sourceProduct(fluidName: String): Block? = TABLE[fluidName]?.sourceProduct?.invoke()
+
+    /** 流动流体遇水的产物；null 表示不反应 */
+    fun flowingProduct(fluidName: String): Block? = TABLE[fluidName]?.flowingProduct?.invoke()
 }
