@@ -4,7 +4,7 @@ navigation:
   icon: "anvilcraft_fluid:frost_fluid_bucket"
 ---
 
-# 浮霜液体
+# 浮霜流体
 
 洗掉物品上的**全部附魔**。
 
@@ -12,7 +12,7 @@ navigation:
 - 洗下来的附魔变成**液态魔咒**：1 级 1mB、2 级 2mB、3 级 4mB、4 级 8mB、5 级 16mB……以此类推
 - 被洗空的附魔书会变回普通的<ref item="minecraft:book"/>
 
-# 余烬液体
+# 余烬流体
 
 让**余烬金属装备**自动修复，和泡在岩浆里一个道理，但快得多。
 
@@ -20,7 +20,7 @@ navigation:
 - 不消耗液体本身，是"接触即生效"的流体
 - 只有带重铸属性的余烬装备会响应
 
-# 诅咒金液体
+# 熔融诅咒金
 
 洗掉**诅咒附魔**之后的熔融金，本身也是熔融金属的一员，可以冷却成<ref item="anvilcraft:cursed_gold_block"/>。
 
