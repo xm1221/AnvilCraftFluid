@@ -61,5 +61,5 @@ jobs:
         with:
           mod: build/libs/${{ steps.properties.outputs.mod_id }}-neoforge-${{ steps.version.outputs.version }}.jar
           extra-mods: |
-            anvilcraft:1.21.1-1.5.0+hotfix.1572
+            anvilcraft:1.21.1-1.6.0+snapshot.2339
             kotlin-for-forge:5.10.0

@@ -1,0 +1,12 @@
+{
+  "anvilcraft_fluid.configuration.debug_fluid_log": "Debug Fluid Log",
+  "anvilcraft_fluid.configuration.debug_fluid_log.tooltip": "Whether to print fluid-registry debug info on common setup",
+  "anvilcraft_fluid.configuration.reaction_interval": "Reaction Interval",
+  "anvilcraft_fluid.configuration.reaction_interval.tooltip": "Fluid reaction re-check interval in ticks",
+  "anvilcraft_fluid.configuration.section.anvilcraft.fluid.common.toml": "Anvilcraft Fluid Common Configuration",
+  "anvilcraft_fluid.configuration.section.anvilcraft.fluid.common.toml.title": "Anvilcraft Fluid Common Configuration",
+  "anvilcraft_fluid.configuration.title": "Anvilcraft Fluid Configuration",
+  "block.anvilcraft_fluid.example_block": "Example Block",
+  "item.anvilcraft_fluid.example_item": "Example Item",
+  "itemGroup.anvilcraft_fluid.addon_items": "AnvilCraft: Fluid"
+}
