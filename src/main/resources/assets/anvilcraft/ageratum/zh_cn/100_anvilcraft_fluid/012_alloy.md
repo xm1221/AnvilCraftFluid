@@ -11,7 +11,7 @@ navigation:
 **1000mB 熔融铁 + 1000mB 任意熔融宝石 + 1 <ref item="minecraft:diamond"/> → 1000mB 熔融皇家钢**
 
 <tip>
-只认**红、黄、蓝、绿**四种宝石熔液——石英与紫水晶太普通，炼不出皇家钢。
+新式量产皇家钢方案！大幅度节省钻石！
 </tip>
 
 # 磁铁块
@@ -24,4 +24,6 @@ navigation:
 
 **1000mB 细雪 + 1000mB 熔融皇家钢 + 1 <ref item="anvilcraft:frost_metal_ingot"/> → 1000mB <ref item="anvilcraft_fluid:frost_fluid_bucket"/>**
 
-细雪可以用桶装（砸开细雪层或者用<ref item="minecraft:powder_snow_bucket"/>）倒进锅里。
+<tip>
+浮霜流体可以用于洗出魔咒或产出浮霜金属
+</tip>

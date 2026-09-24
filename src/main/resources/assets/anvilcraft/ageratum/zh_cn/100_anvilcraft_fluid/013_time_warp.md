@@ -17,4 +17,3 @@ navigation:
 
 满锅<ref item="anvilcraft_fluid:frost_fluid_bucket"/> → 时移 → <ref item="anvilcraft:frost_metal_block"/>
 
-这条不需要放任何物品，只要锅里有整整一桶浮霜流体。
