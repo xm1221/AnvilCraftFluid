@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "anvilcraft_fluid:item/bucket",
+    "layer1": "anvilcraft_fluid:item/bucket_fluid"
+  }
+}

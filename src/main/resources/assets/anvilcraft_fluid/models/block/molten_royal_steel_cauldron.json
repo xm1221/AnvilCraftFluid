@@ -2,7 +2,7 @@
   "parent": "minecraft:block/template_cauldron_full",
   "textures": {
     "bottom": "minecraft:block/cauldron_bottom",
-    "content": "anvilcraft_fluid:block/molten_royal_steel_still",
+    "content": "anvilcraft_fluid:block/molten_metal_still",
     "inside": "minecraft:block/cauldron_inner",
     "particle": "minecraft:block/cauldron_side",
     "side": "minecraft:block/cauldron_side",

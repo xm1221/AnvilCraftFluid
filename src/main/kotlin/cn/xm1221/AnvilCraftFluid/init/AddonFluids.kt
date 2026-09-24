@@ -133,8 +133,9 @@ object AddonFluids {
 
     /** 注册 `<name>` 流体本体（FluidType + source + flowing + 液体方块 + 桶） */
     private fun registerFluid(spec: FluidSpec): FluidEntry<BaseFlowingFluid.Flowing> {
-        val stillTexture: ResourceLocation = AnvilCraftFluid.of("block/${spec.name}_still")
-        val flowingTexture: ResourceLocation = AnvilCraftFluid.of("block/${spec.name}_flow")
+        // 贴图按 spec.texture 取：同族流体共用同一套灰度图，只靠 spec.tint 区分颜色
+        val stillTexture: ResourceLocation = AnvilCraftFluid.of("block/${spec.texture}_still")
+        val flowingTexture: ResourceLocation = AnvilCraftFluid.of("block/${spec.texture}_flow")
 
         val typeFactory = FluidBuilder.FluidTypeFactory { properties, still, flowing ->
             tintedFluidType(properties, still, flowing, spec.tint)
@@ -162,9 +163,9 @@ object AddonFluids {
 
         if (!spec.placeable) builder = builder.noBlock()
 
-        // 桶用**双层模型**（手写在 src/main/resources）：
-        //   layer0 = `<name>_bucket`（灰铁桶身，不染色）
-        //   layer1 = `<name>_bucket_fluid`（桶内液体，被 spec.tint 染色）
+        // 桶用**双层模型**（手写在 src/main/resources，父级 anvilcraft_fluid:item/bucket_template）：
+        //   layer0 = `item/bucket`（灰铁桶身，全模组共用，不染色）
+        //   layer1 = `item/bucket_fluid`（桶内液体，灰度，被 spec.tint 染色）
         // 所以这里把 Registrum 默认生成的单层模型替换掉。
         // ⚠️ 自己调用 bucket() 之后 `defaultBucket` 会变成 false，
         //    FluidBuilder.register() 就不再自动注册它了，必须自己 `.register()`，

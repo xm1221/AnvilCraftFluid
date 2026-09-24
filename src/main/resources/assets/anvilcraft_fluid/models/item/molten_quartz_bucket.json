@@ -1,7 +1,3 @@
 {
-  "parent": "minecraft:item/generated",
-  "textures": {
-    "layer0": "anvilcraft_fluid:item/molten_quartz_bucket",
-    "layer1": "anvilcraft_fluid:item/molten_quartz_bucket_fluid"
-  }
+  "parent": "anvilcraft_fluid:item/bucket_template"
 }
