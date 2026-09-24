@@ -1,9 +1,11 @@
 package cn.xm1221.AnvilCraftFluid.init
 
 import cn.xm1221.AnvilCraftFluid.AnvilCraftFluid
+import cn.xm1221.AnvilCraftFluid.fluid.AddonFluidSpecs
 import dev.dubhe.anvilcraft.init.item.ModItemGroups
 import net.minecraft.core.registries.Registries
 import net.minecraft.world.item.CreativeModeTab
+import net.minecraft.world.item.ItemStack
 import net.neoforged.bus.api.IEventBus
 import net.neoforged.neoforge.registries.DeferredHolder
 import net.neoforged.neoforge.registries.DeferredRegister
@@ -21,7 +23,12 @@ class AddonItemGroups {
                 "addon_items",
                 Supplier {
                     CreativeModeTab.builder()
-                        .icon { AddonItems.EXAMPLE_ITEM.asStack() }
+                        .icon {
+                            AddonFluids.byName(AddonFluidSpecs.MOLTEN_RUBY.name)
+                                ?.bucket
+                                ?.defaultInstance
+                                ?: ItemStack.EMPTY
+                        }
                         .displayItems { _, _ -> }
                         .title(
                             AnvilCraftFluid.REGISTRUM.addLang(

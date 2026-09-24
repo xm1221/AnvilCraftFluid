@@ -2,6 +2,7 @@ package cn.xm1221.AnvilCraftFluid.data
 
 import cn.xm1221.AnvilCraftFluid.AnvilCraftFluid
 import cn.xm1221.AnvilCraftFluid.data.lang.AddonLangHandler
+import cn.xm1221.AnvilCraftFluid.data.recipe.AddonRecipeHandler
 import dev.anvilcraft.lib.v2.registrum.providers.ProviderType
 import net.neoforged.bus.api.SubscribeEvent
 import net.neoforged.fml.common.EventBusSubscriber
@@ -20,6 +21,7 @@ class AddonDatagen {
          */
         fun init() {
             AnvilCraftFluid.REGISTRUM.addDataGenerator(ProviderType.LANG, AddonLangHandler::init)
+            AnvilCraftFluid.REGISTRUM.addDataGenerator(ProviderType.RECIPE, AddonRecipeHandler::init)
         }
     }
 }

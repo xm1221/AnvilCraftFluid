@@ -1,0 +1,19 @@
+{
+  "type": "anvilcraft:fluid_mixing",
+  "fluid_results": [
+    {
+      "amount": 1000,
+      "id": "anvilcraft_fluid:molten_royal_steel"
+    }
+  ],
+  "ingredients": [
+    {
+      "amount": 1000,
+      "fluid": "anvilcraft_fluid:molten_iron"
+    },
+    {
+      "amount": 1000,
+      "fluid": "anvilcraft_fluid:molten_ruby"
+    }
+  ]
+}
