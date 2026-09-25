@@ -1,16 +1,15 @@
 {
   "type": "anvilcraft_fluid:multi_fluid_mixing",
-  "cauldron": {
-    "consume": 10,
-    "fluid": "anvilcraft_fluid:molten_ruby"
-  },
-  "extra_fluids": [
+  "fluid_ingredients": [
+    {
+      "amount": 10,
+      "fluid": "anvilcraft_fluid:molten_ruby"
+    },
     {
       "amount": 250,
       "fluid": "anvilcraft_fluid:molten_copper"
     }
   ],
-  "ingredients": [],
   "results": [
     {
       "id": "minecraft:deepslate_copper_ore"

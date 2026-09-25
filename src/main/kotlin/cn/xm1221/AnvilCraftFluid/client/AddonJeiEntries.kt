@@ -61,7 +61,11 @@ class AddonCauldronRecipe(
     val displayNotes: List<Component>,
 ) : FluidMixingRecipe(
     // 基类只认 SizedFluidIngredient，一组取第一个当代表
-    displayFluidInputs.map { SizedFluidIngredient.of(it.first().fluid, it.first().amount) },
+    // （图上画几格由 CauldronReactionCategory#draw 按"流体组数 + 物品数"决定；
+    //  `firstOrNull` 是为了"标签是空的"这种写坏情况下也不崩）
+    displayFluidInputs.mapNotNull { group ->
+        group.firstOrNull()?.let { SizedFluidIngredient.of(it.fluid, it.amount) }
+    },
     itemResults,
     fluidResults,
     false,
@@ -75,10 +79,10 @@ object AddonJeiEntries {
         AddonFluids.byName(FROST)?.bucket?.let(::ItemStack)
             ?: ItemStack(ModBlocks.LARGE_CAULDRON)
 
-    /** 余烬液体的信息页展示物品（余烬桶） */
+    /** 余烬流体的信息页展示物品（余烬桶） */
     fun emberInfoStack(): ItemStack? = AddonFluids.byName(EMBER)?.bucket?.let(::ItemStack)
 
-    /** 余烬液体的信息页文本 */
+    /** 余烬流体的信息页文本 */
     fun emberInfo(): Component = Component.translatable("gui.anvilcraft_fluid.info.$EMBER")
 
     /**
@@ -147,24 +151,25 @@ object AddonJeiEntries {
     /**
      * 把本模组**自定义类型**的配方（[MultiFluidMixingRecipe]）转成展示用配方，
      * 这样它和伪配方共用同一个 JEI 分类、外观完全一致——
-     * 差别只是"多出来的格子"：主流体槽 + 每个额外流体槽 + 物品输入槽。
+     * 差别只是"多出来的格子"：每个输入流体一格 + 每个输入物品一格。
+     *
+     * 输入流体**一格一组**：一组 = 配方里的一条 `fluid_ingredients`，
+     * 组里多个流体表示"任一即可"（例如 `#anvilcraft_fluid:molten_gem` 这种标签，
+     * 会把标签里的熔融宝石都塞进同一格让 JEI 轮播）。
      */
     fun displayOf(holder: RecipeHolder<MultiFluidMixingRecipe>): RecipeHolder<FluidMixingRecipe> {
         val recipe = holder.value()
-        // 主流体：HasCauldronSimple 的谓词能给出 HolderSet（具体流体或整个标签）
-        val primary = recipe.cauldron.fluid().fluids()
-            .map { holders -> holders.map { holder -> FluidStack(holder.value(), recipe.cauldron.consume()) } }
-            .orElse(emptyList())
-        val extra = recipe.extraFluids.map { requirement ->
+        // 每种输入流体一格：标签展开成候选（多候选由 JEI 轮播），具体流体就是它自己
+        val fluidInputs = recipe.fluidIngredients.map { requirement ->
             requirement.candidates().map { fluid -> FluidStack(fluid, requirement.amount) }
         }
         return RecipeHolder(
             holder.id(),
             AddonCauldronRecipe(
                 displayItemInputs = recipe.itemIngredients,
-                displayFluidInputs = listOf(primary) + extra,
-                itemResults = recipe.results.map { result ->
-                    result.stack().copy().apply { count = result.maxCount }
+                displayFluidInputs = fluidInputs,
+                itemResults = recipe.itemResults.map { result ->
+                    result.stack().copyWithCount(result.maxCount.coerceAtLeast(1))
                 },
                 fluidResults = recipe.fluidResults,
                 displayNotes = listOf(

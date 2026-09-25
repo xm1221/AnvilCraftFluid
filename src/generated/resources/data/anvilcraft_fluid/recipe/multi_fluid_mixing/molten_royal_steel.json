@@ -1,10 +1,9 @@
 {
   "type": "anvilcraft_fluid:multi_fluid_mixing",
-  "cauldron": {
-    "consume": 1000,
-    "fluid": "anvilcraft_fluid:molten_iron"
-  },
-  "extra_fluids": [
+  "fluid_ingredients": [
+    {
+      "fluid": "anvilcraft_fluid:molten_iron"
+    },
     {
       "fluid": "#anvilcraft_fluid:royal_steel_gems"
     }
@@ -19,6 +18,5 @@
     {
       "items": "minecraft:diamond"
     }
-  ],
-  "results": []
+  ]
 }

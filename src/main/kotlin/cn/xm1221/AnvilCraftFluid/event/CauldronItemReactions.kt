@@ -37,11 +37,12 @@ import net.neoforged.neoforge.fluids.capability.IFluidHandler
  *
  * | 流体 | 行为 | 参考 |
  * | --- | --- | --- |
- * | 熔融金 | 洗掉诅咒附魔，**按同量产出诅咒金液体** | 上游 `RoyalGrindstoneMenu.GOLD_PER_CURSE = 16` 的祛咒 |
- * | 浮霜液体 | 洗掉**全部**附魔，产出**液态魔咒**（量按 `2^(等级-1)` mB，见 [liquidAmountFor]） | 上游 `TranscendenceGrindstoneMenu#getLiquidAmount` |
+ * | 熔融金 | 洗掉诅咒附魔，**按同量产出诅咒金流体** | 上游 `RoyalGrindstoneMenu.GOLD_PER_CURSE = 16` 的祛咒 |
+ * | 浮霜流体 | 洗掉**全部**附魔，产出**液态魔咒**（量按 `2^(等级-1)` mB，见 [liquidAmountFor]） | 上游 `TranscendenceGrindstoneMenu#getLiquidAmount` |
  *
- * ⚠️ **余烬液体不在这里**（用户口径）：它的修复与上游"站在火/岩浆里就修"一样，
- * 是**方块接触**行为而不是炼药锅行为，见 `block/ReforgingFluidBlock` 与 `block/AddonCauldronBlock`。
+ * ⚠️ **余烬流体不在这里**（用户口径）：它的修复与上游"站在火/岩浆里就修"一样，
+ * 是**方块接触**行为而不是炼药锅行为，见 `block/AddonLiquidBlock` 与 `block/AddonCauldronBlock`
+ * （两者共用 `fluid/FluidContactApplier`）。
  *
  * ⚠️ 这两个行为是**代码反应**，不是数据配方。查过上游："祛除附魔 → 液态魔咒"上游自己也
  * 不是用配方做的（超凡砂轮 GUI + `LiquidEnchantmentCauldronRecipe` 硬编码代码反应，
@@ -105,7 +106,7 @@ object CauldronItemReactions {
         washEnchantmentsWithFrost(fluids, input)
     }
 
-    // ───────────────────────── 熔融金：洗诅咒 → 诅咒金液体 ─────────────────────────
+    // ───────────────────────── 熔融金：洗诅咒 → 诅咒金流体 ─────────────────────────
 
     private fun washCursesWithGold(
         fluids: LargeCauldronFluidHandler,
@@ -125,7 +126,7 @@ object CauldronItemReactions {
             input.mutateStackInSlot(slot) { stack ->
                 val curses = countEnchantments(stack, onlyCurses = true)
                 val washable = minOf(curses, available / perCurse)
-                // 诅咒走熔融金这条路，产出的是诅咒金液体，所以只用"洗掉几条"，不看液态魔咒量
+                // 诅咒走熔融金这条路，产出的是诅咒金流体，所以只用"洗掉几条"，不看液态魔咒量
                 removed = if (washable > 0) {
                     removeEnchantments(stack, washable, onlyCurses = true).count
                 } else {
@@ -137,7 +138,7 @@ object CauldronItemReactions {
 
             val cost = removed * perCurse
             available -= fluids.consume(gold, cost)
-            // 洗下来的诅咒被流体吸收：等量熔融金变成诅咒金液体
+            // 洗下来的诅咒被流体吸收：等量熔融金变成诅咒金流体
             fluids.fill(FluidStack(cursedGold, cost), IFluidHandler.FluidAction.EXECUTE)
             turnEmptyEnchantedBookIntoBook(input, slot)
             AnvilCraftFluid.LOGGER.debug(
@@ -149,7 +150,7 @@ object CauldronItemReactions {
         }
     }
 
-    // ───────────────────────── 浮霜液体：洗掉全部附魔 ─────────────────────────
+    // ───────────────────────── 浮霜流体：洗掉全部附魔 ─────────────────────────
 
     /**
      * 一条附魔值多少液态魔咒。

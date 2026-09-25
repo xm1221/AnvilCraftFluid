@@ -55,7 +55,7 @@ class AddonJeiPlugin : IModPlugin {
             AddonJeiEntries.pseudoRecipes() + fromManager,
         )
 
-        // 余烬液体不是配方行为（物品站在液体里就被修），用信息页说明
+        // 余烬流体不是配方行为（物品站在流体里就被修），用信息页说明
         AddonJeiEntries.emberInfoStack()?.let { stack ->
             registration.addItemStackInfo(stack, AddonJeiEntries.emberInfo())
         }

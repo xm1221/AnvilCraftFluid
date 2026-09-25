@@ -3,7 +3,7 @@
   "criteria": {
     "has_the_recipe": {
       "conditions": {
-        "recipe": "anvilcraft_fluid:fluid_mixing/magnet_block"
+        "recipe": "anvilcraft_fluid:time_warp/frost_metal_ingot"
       },
       "trigger": "minecraft:recipe_unlocked"
     }
@@ -15,7 +15,7 @@
   ],
   "rewards": {
     "recipes": [
-      "anvilcraft_fluid:fluid_mixing/magnet_block"
+      "anvilcraft_fluid:time_warp/frost_metal_ingot"
     ]
   }
 }

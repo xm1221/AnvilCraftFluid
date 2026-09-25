@@ -3,8 +3,8 @@ package cn.xm1221.AnvilCraftFluid.init
 import cn.xm1221.AnvilCraftFluid.AnvilCraftFluid
 import cn.xm1221.AnvilCraftFluid.AnvilCraftFluid.Companion.REGISTRUM
 import cn.xm1221.AnvilCraftFluid.block.AddonCauldronBlock
+import cn.xm1221.AnvilCraftFluid.block.AddonLiquidBlock
 import cn.xm1221.AnvilCraftFluid.block.ReactiveLiquidBlock
-import cn.xm1221.AnvilCraftFluid.block.ReforgingFluidBlock
 import cn.xm1221.AnvilCraftFluid.fluid.AddonFluidSpecs
 import cn.xm1221.AnvilCraftFluid.fluid.FluidFamily
 import cn.xm1221.AnvilCraftFluid.fluid.FluidSpec
@@ -42,7 +42,7 @@ import java.util.function.Consumer
  * | --- | --- | --- |
  * | 流体类型 | `anvilcraft_fluid:<name>`（FLUID_TYPES） | [tintedFluidType] 提供灰度贴图 + [FluidSpec.tint] 染色 |
  * | 源流体 / 流动流体 | `anvilcraft_fluid:<name>` / `flowing_<name>` | Registrum `FluidBuilder` 自动处理 |
- * | 世界流体方块 | `anvilcraft_fluid:<name>` | `LiquidBlock`；[FluidSpec.placeable] 为 false 时不注册 |
+ * | 世界流体方块 | `anvilcraft_fluid:<name>` | 默认是原版 `LiquidBlock`；有接触影响或遇水凝固时换成 [AddonLiquidBlock] / [ReactiveLiquidBlock]，[FluidSpec.placeable] 为 false 时不注册 |
  * | 桶 | `anvilcraft_fluid:<name>_bucket` | `BucketItem`，贴图 `textures/item/<name>_bucket.png`（灰度 + 物品染色） |
  * | 炼药锅 | `anvilcraft_fluid:<name>_cauldron` | **[AddonCauldronBlock]，名字不能改**——AnvilCraft 的 `HasCauldron#getDefaultCauldron` 按名字推导 |
  *
@@ -104,10 +104,12 @@ object AddonFluids {
      */
     fun register() {
         val reactive = REGISTERED.count { WaterReactions.isReactive(it.spec.name) }
+        val dangerous = REGISTERED.count { !it.spec.contact.isHarmless }
         AnvilCraftFluid.LOGGER.debug(
-            "Registered {} AnvilCraft fluid(s), {} of them water-reactive (custom ReactiveLiquidBlock)",
+            "Registered {} AnvilCraft fluid(s): {} water-reactive, {} with contact effects",
             REGISTERED.size,
             reactive,
+            dangerous,
         )
     }
 
@@ -151,7 +153,7 @@ object AddonFluids {
         }
 
         // 4) 注册炼药锅方块（名字必须是 `<name>_cauldron`）
-        val cauldron = registerCauldron(spec, interactions, isReforging(spec))
+        val cauldron = registerCauldron(spec, interactions)
 
         return RegisteredFluid(spec, fluid, cauldron, interactions)
     }
@@ -183,7 +185,12 @@ object AddonFluids {
                     .sound(SoundActions.BUCKET_EMPTY, SoundEvents.BUCKET_EMPTY_LAVA)
             }
             .fluidProperties { p ->
-                p.tickRate(spec.tickRate).explosionResistance(100.0f)
+                // 流速三件套：tickRate（多久扩散一次）、levelDecreasePerBlock（每格掉多少液面）、
+                // slopeFindDistance（往下游找落差的距离）。都在 FluidSpec 里声明，见其类注释的表格。
+                p.tickRate(spec.tickRate)
+                    .levelDecreasePerBlock(spec.levelDecreasePerBlock)
+                    .slopeFindDistance(spec.slopeFindDistance)
+                    .explosionResistance(100.0f)
             }
 
         // 打标签（Registrum 会同时给源流体与流动流体打上）
@@ -192,22 +199,26 @@ object AddonFluids {
 
         if (!spec.placeable) {
             builder = builder.noBlock()
-        } else if (WaterReactions.reactionFor(spec.name) != null) {
-            // 在水反应表里的流体用自定义液体方块：碰水凝固，且区分源/流动（见 ReactiveLiquidBlock）。
+        } else {
+            // 用哪个方块类？**只在需要额外行为时才自己建**，其余留给 Registrum 的 defaultBlock()：
+            //   · 遇水凝固（在 WaterReactions 表里）→ ReactiveLiquidBlock，且区分源/流动
+            //   · 有接触影响（着火 / 伤害 / 冻结 / 状态效果 / 烧物品 / 重铸）→ AddonLiquidBlock
+            // 两者都不需要时保持 defaultBlock()，这样它的默认设置（含粒子贴图）仍由 Registrum 生成。
+            //
             // ⚠️ 反应对象按 **spec.name** 查好再传进去——不要让它拿液体方块里的 fluid 反推名字，
             //    那拿到的是 `flowing_<name>`，会让所有反应失效。
             // ⚠️ 与 bucket 同理：自己调用 block() 后 defaultBlock 变 false，
             //    FluidBuilder.register() 不再自动注册它，必须自己 .register()
-            val reaction = WaterReactions.reactionFor(spec.name)!!
-            builder.block { fluid, properties ->
-                ReactiveLiquidBlock(fluid, properties, reaction)
-            }.register()
-        } else if (isReforging(spec)) {
-            // 余烬液体：接触即重铸修复（对齐上游火/岩浆的修复方式），见 ReforgingFluidBlock。
-            // 同样必须自己 .register()（理由同上）。
-            builder.block { fluid, properties ->
-                ReforgingFluidBlock(fluid, properties)
-            }.register()
+            val reaction = WaterReactions.reactionFor(spec.name)
+            if (reaction != null || !spec.contact.isHarmless) {
+                builder.block { fluid, properties ->
+                    if (reaction != null) {
+                        ReactiveLiquidBlock(fluid, properties, reaction, spec)
+                    } else {
+                        AddonLiquidBlock(fluid, properties, spec)
+                    }
+                }.register()
+            }
         }
 
         // 桶用**双层模型**：layer0 灰铁桶身（不染色）+ layer1 桶内液体（染 spec.tint）。
@@ -230,9 +241,8 @@ object AddonFluids {
     private fun registerCauldron(
         spec: FluidSpec,
         interactions: CauldronInteraction.InteractionMap,
-        reforging: Boolean,
     ): BlockEntry<AddonCauldronBlock> = REGISTRUM
-        .block("${spec.name}_cauldron") { properties -> AddonCauldronBlock(properties, interactions, reforging) }
+        .block("${spec.name}_cauldron") { properties -> AddonCauldronBlock(properties, interactions, spec) }
         .properties { p ->
             p.strength(2.0f)
                 .noOcclusion()
@@ -297,15 +307,6 @@ object AddonFluids {
         )
         if (spec.name in royalSteelGems) add(AddonFluidTags.ROYAL_STEEL_GEMS)
     }
-
-    /**
-     * 是否是**接触即重铸修复**的流体（目前只有余烬液体）。
-     *
-     * 用户口径："余烬液体的修复和原本在熔岩中的修复一样，只是快一些，和炼药锅无关。"
-     * 所以它既不做成大型炼药锅的行为，也不消耗自身，只是让站在里面的掉落物被修
-     * （[ReforgingFluidBlock] / [AddonCauldronBlock]）。
-     */
-    private fun isReforging(spec: FluidSpec): Boolean = spec.name == AddonFluidSpecs.EMBER_FLUID.name
 
     /**
      * 灰度贴图 + [tint] 染色的 [FluidType]。

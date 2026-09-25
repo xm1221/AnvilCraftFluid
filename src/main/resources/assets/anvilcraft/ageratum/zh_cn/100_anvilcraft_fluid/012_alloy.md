@@ -4,12 +4,15 @@ navigation:
   icon: "anvilcraft_fluid:molten_royal_steel_bucket"
 items:
   - anvilcraft_fluid:molten_royal_steel_bucket
-  - anvilcraft:magnet_block
 ---
 
 # 磁铁块
 
-<recipe id="anvilcraft_fluid:fluid_mixing/magnet_block"/>
+<recipe id="anvilcraft_fluid:multi_fluid_mixing/magnet_block"/>
+
+<tip>
+魔法充电器！
+</tip>
 
 # 熔融皇家钢
 
@@ -18,12 +21,25 @@ items:
 <recipe id="anvilcraft_fluid:multi_fluid_mixing/molten_royal_steel"/>
 
 <tip>
-只认**红、黄、蓝、绿**四种宝石熔液——石英与紫水晶太普通，炼不出皇家钢。
+节省大量钻石的全新炼制方法！
 </tip>
 
 # 浮霜流体
 
-**1000mB 细雪 + 1000mB 熔融皇家钢 + 1 <ref item="anvilcraft:frost_metal_ingot"/> → 1000mB <ref item="anvilcraft_fluid:frost_fluid_bucket"/>**
+**1000mB 细雪 + 1 <ref item="anvilcraft:frost_metal_nugget"/> → 1000mB <ref item="anvilcraft_fluid:frost_fluid_bucket"/>**
 <recipe id="anvilcraft_fluid:multi_fluid_mixing/frost_fluid"/>
 
-细雪可以用桶装（砸开细雪层，或用<ref item="minecraft:powder_snow_bucket"/>）倒进锅里。
+<tip>
+释放细雪里冻着的寒霜之力，需要一粒浮霜金属作引子。
+</tip>
+
+
+# 余烬流体
+
+**1000mB 原油 + 1000mB 熔岩 + 1 <ref item="anvilcraft:ember_metal_nugget"/> → 1000mB <ref item="anvilcraft_fluid:ember_fluid_bucket"/>**
+<recipe id="anvilcraft_fluid:multi_fluid_mixing/ember_fluid"/>
+
+<tip>
+让世界燃烧吧！
+</tip>
+

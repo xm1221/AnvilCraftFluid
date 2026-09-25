@@ -4,12 +4,12 @@
   "fluid": "anvilcraft_fluid:frost_fluid",
   "ingredients": [
     {
-      "items": "anvilcraft:royal_steel_block"
+      "items": "anvilcraft:royal_steel_nugget"
     }
   ],
   "results": [
     {
-      "id": "anvilcraft:frost_metal_block"
+      "id": "anvilcraft:frost_metal_nugget"
     }
   ]
 }

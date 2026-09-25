@@ -1,18 +1,18 @@
 package cn.xm1221.AnvilCraftFluid.block
 
+import cn.xm1221.AnvilCraftFluid.fluid.FluidSpec
 import cn.xm1221.AnvilCraftFluid.fluid.WaterReaction
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
 import net.minecraft.tags.FluidTags
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.Block
-import net.minecraft.world.level.block.LiquidBlock
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.material.FlowingFluid
 import net.neoforged.neoforge.event.EventHooks
 
 /**
- * 会与水发生凝固反应的液体方块。
+ * 会与水发生凝固反应的液体方块（同时继承 [AddonLiquidBlock] 的接触影响）。
  *
  * 碰水时把**自己所在的位置**换成产物（产物查 [WaterReactions]），
  * 并且**区分源方块与流动流体**——两者的产物可以不同（例如熔融铁：
@@ -26,7 +26,7 @@ import net.neoforged.neoforge.event.EventHooks
  * 官方注释说"向下的那一路请在 `FlowingFluid#spreadTo` 里自己处理"。
  * 结果就是：熔融宝石**上**浇水不会触发，得额外再写一套 `spreadTo` 覆写。
  *
- * 这里改成继承 [LiquidBlock] 自己监听 `onPlace` / `neighborChanged`，
+ * 这里改成继承 [AddonLiquidBlock] 自己监听 `onPlace` / `neighborChanged`，
  * **六向全查**，一套代码覆盖所有情况：
  *
  * | 玩家操作 | 触发路径 |
@@ -44,7 +44,8 @@ class ReactiveLiquidBlock(
     fluid: FlowingFluid,
     properties: Properties,
     private val reaction: WaterReaction,
-) : LiquidBlock(fluid, properties) {
+    spec: FluidSpec,
+) : AddonLiquidBlock(fluid, properties, spec) {
 
     // 不覆写 codec()：沿用 LiquidBlock 的 CODEC。
     // 我们的液体方块只在运行时由流体生成，不参与数据包里的方块定义。

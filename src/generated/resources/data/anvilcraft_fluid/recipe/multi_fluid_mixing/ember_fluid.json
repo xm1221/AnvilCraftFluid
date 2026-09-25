@@ -2,18 +2,21 @@
   "type": "anvilcraft_fluid:multi_fluid_mixing",
   "fluid_ingredients": [
     {
-      "fluid": "minecraft:powder_snow"
+      "fluid": "anvilcraft:oil"
+    },
+    {
+      "fluid": "minecraft:lava"
     }
   ],
   "fluid_results": [
     {
       "amount": 1000,
-      "id": "anvilcraft_fluid:frost_fluid"
+      "id": "anvilcraft_fluid:ember_fluid"
     }
   ],
   "ingredients": [
     {
-      "items": "anvilcraft:frost_metal_nugget"
+      "items": "anvilcraft:ember_metal_nugget"
     }
   ]
 }

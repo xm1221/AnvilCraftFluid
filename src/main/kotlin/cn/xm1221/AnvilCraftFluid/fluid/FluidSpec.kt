@@ -1,5 +1,7 @@
 package cn.xm1221.AnvilCraftFluid.fluid
 
+import net.minecraft.resources.ResourceLocation
+
 /**
  * 流体族。族决定**共用哪一套灰度贴图**，以及进哪些流体标签。
  *
@@ -21,7 +23,7 @@ enum class FluidFamily(
     /**
      * 功能流体族（浮霜 / 余烬 / 诅咒金）。
      *
-     * 它们不是"熔融材料"而是"有特殊作用的液体"，所以**不进** `#molten`，只进 `#special`。
+     * 它们不是"熔融材料"而是"有特殊作用的流体"，所以**不进** `#molten`，只进 `#special`。
      * 贴图暂时复用金属族（都是液态质感）；想给它们专属美术时，
      * 补一对 `frost_fluid_still/flow.png` 并在对应的 [FluidSpec] 上写 `texture = "frost_fluid"` 即可。
      */
@@ -55,7 +57,27 @@ enum class FluidFamily(
  * @property viscosity 粘稠度（越大流得越慢，水=1000，岩浆=6000）
  * @property temperature 温度（岩浆=1300，用于冰冻/蒸发判定）
  * @property tickRate 流动更新间隔（tick），越小流得越快
+ * @property levelDecreasePerBlock 每流一格液面下降多少：**越大铺得越近**（水 = 1，岩浆 = 2）
+ * @property slopeFindDistance 往下游找落差的距离：**越大越容易顺着坑流下去**（水 = 4，岩浆 = 2）
+ * @property contact 泡在里头会受到的影响（着火 / 伤害 / 冻结 / 状态效果 / 烧毁物品 / 重铸修复）；
+ *   默认 [FluidContact.NONE] 表示泡进去什么也不会发生
  * @property placeable false 时只有桶 + 炼药锅，不注册可放置的世界流体方块
+ *
+ * ## 流速的三个旋钮
+ *
+ * 三者各管一件事，想调"流得多快 / 流得多远"就动它们（都直接对应
+ * `BaseFlowingFluid.Properties` 的同名方法）：
+ *
+ * | 想要的效果 | 改哪个 | 往哪改 |
+ * | --- | --- | --- |
+ * | 扩散得**更慢**（像岩浆那样一格一格挪） | [tickRate] | 调大（水 = 5，我们默认 10） |
+ * | 流得**更近**（摊成一小滩就停） | [levelDecreasePerBlock] | 调大 |
+ * | 更容易**顺着落差往下**流 | [slopeFindDistance] | 调大 |
+ *
+ * ## 影响
+ *
+ * [contact] 是声明式的：想给某种流体加影响只在它的 [FluidSpec] 里写一行，
+ * 注册代码不用动。字段含义见 [FluidContact]。
  */
 data class FluidSpec(
     val name: String,
@@ -67,6 +89,9 @@ data class FluidSpec(
     val viscosity: Int = 6000,
     val temperature: Int = 1300,
     val tickRate: Int = 10,
+    val levelDecreasePerBlock: Int = 1,
+    val slopeFindDistance: Int = 4,
+    val contact: FluidContact = FluidContact.NONE,
     val placeable: Boolean = true,
 )
 
@@ -185,9 +210,17 @@ object AddonFluidSpecs {
     /** 熔融钛（钛矿 → `anvilcraft:deepslate_titanium_ore`） */
     val MOLTEN_TITANIUM = FluidSpec("molten_titanium", argb(0xFF6E6A8A), FluidFamily.METAL, temperature = 1700)
 
-    /** 熔融铀（铀矿 → `anvilcraft:deepslate_uranium_ore`） */
+    /**
+     * 熔融铀（铀矿 → `anvilcraft:deepslate_uranium_ore`）。
+     *
+     * 泡在里面会**凋零**（用户口径）。伤害交给凋零效果自己结算，
+     * 所以不需要自定义伤害类型（见 [AddonDamageTypes]）。
+     */
     val MOLTEN_URANIUM = FluidSpec(
         "molten_uranium", argb(0xFFB7D24A), FluidFamily.METAL, temperature = 1150, lightLevel = 14,
+        contact = FluidContact(
+            effects = listOf(ContactEffect(ResourceLocation.withDefaultNamespace("wither"), 60)),
+        ),
     )
 
     val METALS: List<FluidSpec> = listOf(
@@ -206,22 +239,49 @@ object AddonFluidSpecs {
 
     // ───────────────────── 功能流体（共用 SPECIAL 贴图） ─────────────────────
 
-    /** 浮霜液体：洗去物品附魔（见 `event/CauldronItemReactions.kt`） */
+    /**
+     * 浮霜流体：洗去物品附魔（见 `event/CauldronItemReactions.kt`）。
+     *
+     * 泡在里面**就像待在细雪里**：冻结值一点点累积，冻满了开始掉血，视野也会结霜。
+     * 实现上只把原版那个"在细雪里"的标记点起来，其余全交给原版
+     * （见 [FluidContactApplier]），所以手感与细雪一致。
+     */
     val FROST_FLUID = FluidSpec(
         "frost_fluid", argb(0xFFBFE6F5), FluidFamily.SPECIAL,
         lightLevel = 6, temperature = 300, viscosity = 2000,
+        contact = FluidContact(freezing = true),
     )
 
-    /** 余烬液体：加速余烬装备的重铸修复 */
+    /**
+     * 余烬流体：加速余烬装备的重铸修复。
+     *
+     * 泡在里面会**着火**并持续受到大量伤害，**普通物品会被烧毁**（像岩浆）。
+     * 但火焰免疫的物品（余烬金属装备等）既不受伤也不会被烧毁，其中带重铸组件的还会被修好——
+     * 这正是上游让重铸装备在岩浆里活下来的同一套机制，见 [FluidContact] 的类注释。
+     */
     val EMBER_FLUID = FluidSpec(
         "ember_fluid", argb(0xFFFF7A2A), FluidFamily.SPECIAL,
-        lightLevel = 15, temperature = 2000,
+        lightLevel = 15, temperature = 2000, viscosity = 4000,
+        contact = FluidContact(
+            igniteSeconds = 15,
+            damage = 6f,
+            damageInterval = 10,
+            damageType = AddonDamageTypes.EMBER,
+            reforgePerTick = 1,
+        ),
     )
 
-    /** 诅咒金液体：洗掉诅咒附魔后的熔融金（上游诅咒金体系） */
+    /**
+     * 诅咒金流体：洗掉诅咒附魔后的熔融金（上游诅咒金体系）。
+     *
+     * 泡在里面会持续**虚弱**（每 tick 用 3 秒时长刷新，离开就消退）。
+     */
     val CURSED_GOLD_FLUID = FluidSpec(
         "cursed_gold_fluid", argb(0xFF7A5230), FluidFamily.SPECIAL,
         lightLevel = 8, temperature = 1400,
+        contact = FluidContact(
+            effects = listOf(ContactEffect(ResourceLocation.withDefaultNamespace("weakness"), 60)),
+        ),
     )
 
     val SPECIALS: List<FluidSpec> = listOf(
