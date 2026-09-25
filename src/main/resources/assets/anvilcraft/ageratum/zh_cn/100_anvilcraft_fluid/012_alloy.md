@@ -13,9 +13,8 @@ items:
 
 # 熔融皇家钢
 
-<recipe id="anvilcraft_fluid:fluid_mixing/molten_royal_steel"/>
-
 在<ref item="anvilcraft:large_cauldron"/>里，**1000mB 熔融铁 + 1000mB 任意熔融宝石 + 1 <ref item="minecraft:diamond"/> → 1000mB 熔融皇家钢**。
+
 <recipe id="anvilcraft_fluid:multi_fluid_mixing/molten_royal_steel"/>
 
 <tip>

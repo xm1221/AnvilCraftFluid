@@ -344,22 +344,16 @@ object AddonRecipeHandler {
      * 大型炼药锅在铁砧撞击时执行（`LargeCauldronBlockEntity#tryProcessFluidMixingRecipe`，
      * 用 `getAllRecipesFor` 全量遍历、**不筛命名空间**，所以本模组的配方能直接生效）。
      *
-     * - 熔融铁 + 熔融红宝石 → 熔融皇家钢（待按新口径修订：用户要"任意熔融宝石 + 钻石 + 熔融铁"，
-     *   而 `fluid_mixing` 吃不了物品，需要另想办法）
-     * - 熔融黄玉 10 mB + 熔融铁 1000 mB → 磁铁块
+     * - 熔融黄玉 10 mB + 熔融铁 1000 mB → 磁铁块（用户指定量）
+     *
+     * ⚠️ 这里**曾经**还有一条"熔融铁 + 熔融红宝石 → 熔融皇家钢"的旧配方，
+     * 已删除：皇家钢的新口径是"任意红/黄/蓝/绿熔融宝石 + **钻石** + 熔融铁"，
+     * 而 `fluid_mixing` 吃不了物品，那条只能由自研类型
+     * [cn.xm1221.AnvilCraftFluid.recipe.MultiFluidMixingRecipe] 承担，
+     * 这里再留一条旧配方就会多出一条不该存在的配方（实机已发现）。
      */
     private fun fluidMixingRecipes(provider: RegistrumRecipeProvider) {
         val iron = AddonFluids.byName("molten_iron") ?: return
-        val ruby = AddonFluids.byName("molten_ruby") ?: return
-        val royalSteel = AddonFluids.byName("molten_royal_steel")
-
-        if (royalSteel != null) {
-            FluidMixingRecipe.builder()
-                .requires(iron.source, BUCKET)
-                .requires(ruby.source, BUCKET)
-                .result(royalSteel.source, BUCKET)
-                .save(provider, AnvilCraftFluid.of("fluid_mixing/molten_royal_steel"))
-        }
 
         // 熔融黄玉 10 mB + 熔融铁 1000 mB → 磁铁块（用户指定量）
         AddonFluids.byName("molten_topaz")?.let { topaz ->
