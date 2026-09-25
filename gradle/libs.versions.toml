@@ -9,12 +9,15 @@ lombok = "8.7.1"
 # JEI 只用于编译期（写 JEI 插件）；运行时的 JEI 由玩家自己装，所以不写 runtimeOnly，
 # 否则会和玩家自己放进 mods 的 JEI 撞车（同一个 mod 两份 jar）。
 jei = "19.27.0.340"
+# 藿香（Ageratum）：AnvilCraft 的手册 mod。同样只编译期用（写手册配方展示组件）
+ageratum = "0.0.1+build.121"
 
 [libraries]
 kotlinforforge = { group = "thedarkcolour", name = "kotlinforforge-neoforge", version.ref = "kotlinforforge" }
 anvillib = { group = "dev.anvilcraft.lib", name = "anvillib-neoforge-1.21.1", version.ref = "anvillib" }
 anvilcraft = { group = "dev.dubhe", name = "anvilcraft-neoforge-1.21.1", version.ref = "anvilcraft" }
 jei-api = { group = "mezz.jei", name = "jei-1.21.1-neoforge-api", version.ref = "jei" }
+ageratum = { group = "dev.anvilcraft.resource", name = "ageratum-neoforge-1.21.1", version.ref = "ageratum" }
 
 [plugins]
 modDevGradle = { id = "net.neoforged.moddev", version.ref = "modDevGradle" }

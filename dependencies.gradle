@@ -12,4 +12,8 @@ dependencies {
     // JEI：**只编译期**。用来注册伪配方（浮霜洗附魔 / 熔融金洗诅咒的展示）。
     // 不写 runtimeOnly——运行时的 JEI 由玩家自己装进 mods，多给一份会撞车。
     compileOnly(libs.jei.api)
+
+    // 藿香（Ageratum）：也只编译期。用来注册本模组自研配方类型的**手册配方展示组件**。
+    // 玩家不装藿香时，相关类不会被加载（注册处有 isLoaded 守卫）。
+    compileOnly(libs.ageratum) { transitive = false }
 }

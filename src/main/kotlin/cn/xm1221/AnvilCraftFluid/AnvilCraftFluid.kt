@@ -69,6 +69,9 @@ class AnvilCraftFluid(modEventBus: IEventBus, modContainer: ModContainer) {
         // 所以这里显式注册到游戏总线，不走 @EventBusSubscriber。
         NeoForge.EVENT_BUS.register(CauldronItemReactions)
 
+        // 手册（藿香）的配方展示组件：装了藿香且是客户端才注册（见 AddonAgeratumCompat）
+        cn.xm1221.AnvilCraftFluid.client.AddonAgeratumCompat.registerIfPresent(modEventBus)
+
         AddonDatagen.init()
     }
 }

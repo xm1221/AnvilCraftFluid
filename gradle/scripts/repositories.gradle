@@ -12,6 +12,8 @@ repositories {
         content {
             includeGroup "dev.anvilcraft.lib"
             includeGroup "dev.dubhe"
+            // 藿香（Ageratum，AnvilCraft 的手册 mod）
+            includeGroup "dev.anvilcraft.resource"
         }
     }
     maven { // Registrate Fork
