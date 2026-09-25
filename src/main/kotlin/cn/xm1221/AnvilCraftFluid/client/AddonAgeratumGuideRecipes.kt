@@ -7,6 +7,7 @@ import dev.anvilcraft.lib.v2.util.predicate.ChanceItemStack
 import dev.anvilcraft.lib.v2.util.predicate.ItemIngredientPredicate
 import dev.anvilcraft.resource.ageratum.client.feat.markdown.MDRenderContext
 import dev.anvilcraft.resource.ageratum.client.registries.AgeratumRegistries
+import dev.dubhe.anvilcraft.block.GiantAnvilBlock
 import dev.dubhe.anvilcraft.block.LargeCauldronBlock
 import dev.dubhe.anvilcraft.block.state.Cube3x3PartHalf
 import dev.dubhe.anvilcraft.client.markdown.recipe.anvil.MDBaseAnvilRecipeComponent
@@ -129,26 +130,62 @@ class MultiFluidMixingRecipeComponent(
     override fun getOutputBlockState(): BlockState = largeCauldron()
 
     /**
-     * 在图下方写清楚"旁边那口锅是哪来的、要多少"。
+     * 画图：**巨型铁砧 + 大型炼药锅**。
      *
-     * 说法照上游（`MDTimeWarpRecipeComponent`）：`消耗 X mB 的 <炼药锅名>`，
-     * 这里把"消耗"换成"另需"，因为主流体已经由大锅那张图表达了。
+     * 基类 `MDBaseAnvilRecipeComponent#renderRecipe` 把铁砧写死成普通 `Blocks.ANVIL`，
+     * 而本模组的配方是"**大铁砧砸大锅**"，所以照它的排布规则重画一遍，
+     * 只把铁砧换成巨型铁砧（`HALF = MID_CENTER` 才是可渲染的那一块）。
      */
     override fun renderRecipe(context: MDRenderContext, mouseX: Float, mouseY: Float) {
-        super.renderRecipe(context, mouseX, mouseY)
         val graphics = context.graphics()
+        val ingredients = getIngredients()
+
+        // 输入物品（含额外流体的桶）
+        AgeratumUtil.renderItems(context, ingredients, mouseX, mouseY, INPUT_ITEM_X, ITEM_Y)
+        if (ingredients.isNotEmpty()) AgeratumUtil.renderArrow(graphics, INPUT_ARROW_X, ITEM_Y - 6)
+
+        // 机器：巨型铁砧 + 大型炼药锅
+        val anvilY = BLOCK_Y - 2 * AgeratumUtil.BLOCK_SIZE
+        AgeratumUtil.renderBlock(context, giantAnvil(), mouseX, mouseY, INPUT_BLOCK_X, anvilY, 100)
+        val inputBlocks = getInputBlockStates()
+        inputBlocks.forEachIndexed { index, state ->
+            if (state.isAir) return@forEachIndexed
+            AgeratumUtil.renderBlock(
+                context,
+                state,
+                mouseX,
+                mouseY,
+                INPUT_BLOCK_X,
+                AgeratumUtil.getRenderY(BLOCK_Y, index),
+                (inputBlocks.size - index) * 10,
+            )
+        }
+
+        // 输出物品 / 输出方块
+        AgeratumUtil.renderArrow(graphics, OUTPUT_ARROW_X, ITEM_Y - 6)
+        AgeratumUtil.renderItems(context, getResultItems(), mouseX, mouseY, OUTPUT_ITEM_X, ITEM_Y)
+        val outputBlock = getOutputBlockState()
+        if (!outputBlock.isAir) {
+            AgeratumUtil.renderBlock(context, outputBlock, mouseX, mouseY, OUTPUT_BLOCK_X, BLOCK_Y, 0)
+        }
+
+        // 额外流体还要多少（图上用桶表示，数量写在这里）
         recipe.extraFluids.forEachIndexed { index, requirement ->
-            val cauldronName = requirement.candidates().firstOrNull()
+            val bucketName = requirement.candidates().firstOrNull()
                 ?.let { ItemStack(it.bucket).hoverName }
                 ?: Component.literal(requirement.id())
             AgeratumUtil.renderText(
                 graphics,
-                Component.translatable(EXTRA_FLUID_KEY, requirement.amount, cauldronName),
+                Component.translatable(EXTRA_FLUID_KEY, requirement.amount, bucketName),
                 INFO_X,
                 INFO_Y + index * 11,
             )
         }
     }
+
+    /** 巨型铁砧只画正中一块 */
+    private fun giantAnvil(): BlockState = ModBlocks.GIANT_ANVIL.getDefaultState()
+        .setValue(GiantAnvilBlock.HALF, Cube3x3PartHalf.MID_CENTER)
 
     /** 大型炼药锅只画正中一块 */
     private fun largeCauldron(): BlockState = ModBlocks.LARGE_CAULDRON.getDefaultState()
@@ -168,6 +205,13 @@ class MultiFluidMixingRecipeComponent(
         private const val INFO_Y = 106
 
         private const val EXTRA_FLUID_KEY = "gui.anvilcraft_fluid.guide.extra_fluid"
+
+        // 槽位坐标：与基类 renderRecipe 里那套一致，只是铁砧换成了巨型铁砧
+        private const val INPUT_ITEM_X = 40
+        private const val OUTPUT_ITEM_X = 194
+        private const val ITEM_Y = 46
+        private const val INPUT_ARROW_X = 86
+        private const val OUTPUT_ARROW_X = 138
     }
 }
 
