@@ -3,6 +3,8 @@ package cn.xm1221.AnvilCraftFluid.client
 import cn.xm1221.AnvilCraftFluid.recipe.AddonRecipeTypes
 import cn.xm1221.AnvilCraftFluid.recipe.MultiFluidMixingRecipe
 import dev.anvilcraft.resource.ageratum.client.feat.markdown.component.extend.MDRecipeComponent
+import dev.anvilcraft.lib.v2.util.predicate.ChanceItemStack
+import dev.anvilcraft.lib.v2.util.predicate.ItemIngredientPredicate
 import dev.anvilcraft.resource.ageratum.client.feat.markdown.MDRenderContext
 import dev.anvilcraft.resource.ageratum.client.registries.AgeratumRegistries
 import dev.dubhe.anvilcraft.block.LargeCauldronBlock
@@ -13,6 +15,7 @@ import dev.dubhe.anvilcraft.recipe.anvil.predicate.block.HasCauldron
 import dev.dubhe.anvilcraft.util.AgeratumUtil
 import dev.dubhe.anvilcraft.recipe.component.HasCauldronSimple
 import net.minecraft.network.chat.Component
+import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.block.state.BlockState
 import net.neoforged.bus.api.IEventBus
 import net.neoforged.neoforge.registries.DeferredRegister
@@ -88,25 +91,39 @@ class MultiFluidMixingRecipeComponent(
     enableAlignCenter: Boolean,
 ) : MDBaseAnvilRecipeComponent(enableAlignCenter) {
 
-    override fun getIngredients() = recipe.itemIngredients
-
-    override fun getResultItems() = recipe.results
-
     /**
-     * 输入容器：**大型炼药锅**，外加每种额外流体各自的锅。
+     * 输入物品：配方本身的输入物品 + **额外流体的桶**。
      *
-     * 基类会把这一列方块竖着排开（`AgeratumUtil.getRenderY`），
-     * 所以"第二种熔液"就用**它自己的炼药锅**画在旁边——Ageratum 没有流体槽这类绘制，
-     * 上游表达"锅里有什么"的办法正是用对应的炼药锅方块（见 `getInputCauldron`）。
+     * 藿香没有流体绘制（可用标签只有 block/item/recipe/text…，**没有 fluid**），
+     * 所以手册里"一格流体"只能用别的东西代表——这里用**这个流体的桶**，
+     * 玩家一眼知道要往锅里加哪种液体；数量写在图下那行字里。
      */
-    override fun getInputBlockStates(): List<BlockState> = buildList {
-        add(largeCauldron())
+    override fun getIngredients(): List<ItemIngredientPredicate> = buildList {
+        addAll(recipe.itemIngredients)
         recipe.extraFluids.forEach { requirement ->
-            requirement.candidates().firstOrNull()?.let { fluid ->
-                add(HasCauldron.getDefaultCauldron(fluid).defaultBlockState())
+            requirement.candidates().firstOrNull()?.bucket?.let { bucket ->
+                add(ItemIngredientPredicate.of(bucket).build())
             }
         }
     }
+
+    /** 产出物品：配方本身的产出 + **产出流体的桶**（同样是为了在图上看得见） */
+    override fun getResultItems(): List<ChanceItemStack> = buildList {
+        addAll(recipe.results)
+        recipe.fluidResults.forEach { fluid ->
+            fluid.fluid.bucket?.let { bucket ->
+                add(ChanceItemStack.of(ItemStack(bucket)))
+            }
+        }
+    }
+
+    /**
+     * 输入容器：**大型炼药锅**。
+     *
+     * 本模组的配方都在大型炼药锅里做，所以机器就是它：主流体由这口锅自己表现
+     * （锅里装着什么，看模型就知道），额外流体则用上面的桶表示。
+     */
+    override fun getInputBlockStates(): List<BlockState> = listOf(largeCauldron())
 
     /** 输出容器：还是那口大锅——熔液换了名字，锅没换 */
     override fun getOutputBlockState(): BlockState = largeCauldron()
@@ -122,7 +139,7 @@ class MultiFluidMixingRecipeComponent(
         val graphics = context.graphics()
         recipe.extraFluids.forEachIndexed { index, requirement ->
             val cauldronName = requirement.candidates().firstOrNull()
-                ?.let { HasCauldron.getDefaultCauldron(it).name }
+                ?.let { ItemStack(it.bucket).hoverName }
                 ?: Component.literal(requirement.id())
             AgeratumUtil.renderText(
                 graphics,
