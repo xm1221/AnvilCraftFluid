@@ -28,5 +28,5 @@ items:
 <recipe id="anvilcraft_fluid:solid_liquid/cooling/lead"/>
 
 <tip>
-冷却要求**满锅**（1000mB）：锅里不够一桶就不会触发。
+锅里得是满满一锅熔液；不满一锅，砸下去什么也不会成形。
 </tip>

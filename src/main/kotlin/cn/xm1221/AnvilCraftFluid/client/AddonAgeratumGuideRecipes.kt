@@ -4,6 +4,8 @@ import cn.xm1221.AnvilCraftFluid.recipe.AddonRecipeTypes
 import cn.xm1221.AnvilCraftFluid.recipe.MultiFluidMixingRecipe
 import dev.anvilcraft.resource.ageratum.client.feat.markdown.component.extend.MDRecipeComponent
 import dev.anvilcraft.resource.ageratum.client.registries.AgeratumRegistries
+import dev.dubhe.anvilcraft.block.LargeCauldronBlock
+import dev.dubhe.anvilcraft.block.state.Cube3x3PartHalf
 import dev.dubhe.anvilcraft.client.markdown.recipe.anvil.MDBaseAnvilRecipeComponent
 import dev.dubhe.anvilcraft.init.block.ModBlocks
 import dev.dubhe.anvilcraft.recipe.anvil.predicate.block.HasCauldron
@@ -87,22 +89,21 @@ class MultiFluidMixingRecipeComponent(
 
     override fun getResultItems() = recipe.results
 
-    /** 输入容器：由主流体推出对应的炼药锅（拿不到就退回大型炼药锅） */
-    override fun getInputBlockStates(): List<BlockState> = listOf(inputCauldron())
+    /**
+     * 输入容器：**大型炼药锅**。
+     *
+     * 本模组的配方都在大型炼药锅里做（多流体 + 输入物品只有它有），
+     * 所以图上也该是它，而不是"某种熔液对应的小锅"。
+     * 和 JEI 分类里一样取正中那一块（`HALF = MID_CENTER`）才画得对。
+     */
+    override fun getInputBlockStates(): List<BlockState> = listOf(largeCauldron())
 
-    /** 输出容器：产流体就用该流体的锅，不产流体则容器不变 */
-    override fun getOutputBlockState(): BlockState =
-        recipe.fluidResults.firstOrNull()?.let { HasCauldron.getDefaultCauldron(it.fluid).defaultBlockState() }
-            ?: inputCauldron()
+    /** 输出容器：还是那口大锅——熔液换了名字，锅没换 */
+    override fun getOutputBlockState(): BlockState = largeCauldron()
 
-    private fun inputCauldron(): BlockState {
-        val primary = primaryFluid()
-        return if (primary != null) {
-            HasCauldron.getDefaultCauldron(primary).defaultBlockState()
-        } else {
-            ModBlocks.LARGE_CAULDRON.getDefaultState()
-        }
-    }
+    /** 大型炼药锅只画正中一块 */
+    private fun largeCauldron(): BlockState = ModBlocks.LARGE_CAULDRON.getDefaultState()
+        .setValue(LargeCauldronBlock.HALF, Cube3x3PartHalf.MID_CENTER)
 
     /** 从主流体条件里取出具体流体（`HasCauldronSimple#fluid` 是谓词，可能是标签） */
     private fun primaryFluid() =
