@@ -3,13 +3,16 @@ package cn.xm1221.AnvilCraftFluid.client
 import cn.xm1221.AnvilCraftFluid.recipe.AddonRecipeTypes
 import cn.xm1221.AnvilCraftFluid.recipe.MultiFluidMixingRecipe
 import dev.anvilcraft.resource.ageratum.client.feat.markdown.component.extend.MDRecipeComponent
+import dev.anvilcraft.resource.ageratum.client.feat.markdown.MDRenderContext
 import dev.anvilcraft.resource.ageratum.client.registries.AgeratumRegistries
 import dev.dubhe.anvilcraft.block.LargeCauldronBlock
 import dev.dubhe.anvilcraft.block.state.Cube3x3PartHalf
 import dev.dubhe.anvilcraft.client.markdown.recipe.anvil.MDBaseAnvilRecipeComponent
 import dev.dubhe.anvilcraft.init.block.ModBlocks
 import dev.dubhe.anvilcraft.recipe.anvil.predicate.block.HasCauldron
+import dev.dubhe.anvilcraft.util.AgeratumUtil
 import dev.dubhe.anvilcraft.recipe.component.HasCauldronSimple
+import net.minecraft.network.chat.Component
 import net.minecraft.world.level.block.state.BlockState
 import net.neoforged.bus.api.IEventBus
 import net.neoforged.neoforge.registries.DeferredRegister
@@ -90,16 +93,45 @@ class MultiFluidMixingRecipeComponent(
     override fun getResultItems() = recipe.results
 
     /**
-     * 输入容器：**大型炼药锅**。
+     * 输入容器：**大型炼药锅**，外加每种额外流体各自的锅。
      *
-     * 本模组的配方都在大型炼药锅里做（多流体 + 输入物品只有它有），
-     * 所以图上也该是它，而不是"某种熔液对应的小锅"。
-     * 和 JEI 分类里一样取正中那一块（`HALF = MID_CENTER`）才画得对。
+     * 基类会把这一列方块竖着排开（`AgeratumUtil.getRenderY`），
+     * 所以"第二种熔液"就用**它自己的炼药锅**画在旁边——Ageratum 没有流体槽这类绘制，
+     * 上游表达"锅里有什么"的办法正是用对应的炼药锅方块（见 `getInputCauldron`）。
      */
-    override fun getInputBlockStates(): List<BlockState> = listOf(largeCauldron())
+    override fun getInputBlockStates(): List<BlockState> = buildList {
+        add(largeCauldron())
+        recipe.extraFluids.forEach { requirement ->
+            requirement.candidates().firstOrNull()?.let { fluid ->
+                add(HasCauldron.getDefaultCauldron(fluid).defaultBlockState())
+            }
+        }
+    }
 
     /** 输出容器：还是那口大锅——熔液换了名字，锅没换 */
     override fun getOutputBlockState(): BlockState = largeCauldron()
+
+    /**
+     * 在图下方写清楚"旁边那口锅是哪来的、要多少"。
+     *
+     * 说法照上游（`MDTimeWarpRecipeComponent`）：`消耗 X mB 的 <炼药锅名>`，
+     * 这里把"消耗"换成"另需"，因为主流体已经由大锅那张图表达了。
+     */
+    override fun renderRecipe(context: MDRenderContext, mouseX: Float, mouseY: Float) {
+        super.renderRecipe(context, mouseX, mouseY)
+        val graphics = context.graphics()
+        recipe.extraFluids.forEachIndexed { index, requirement ->
+            val cauldronName = requirement.candidates().firstOrNull()
+                ?.let { HasCauldron.getDefaultCauldron(it).name }
+                ?: Component.literal(requirement.id())
+            AgeratumUtil.renderText(
+                graphics,
+                Component.translatable(EXTRA_FLUID_KEY, requirement.amount, cauldronName),
+                INFO_X,
+                INFO_Y + index * 11,
+            )
+        }
+    }
 
     /** 大型炼药锅只画正中一块 */
     private fun largeCauldron(): BlockState = ModBlocks.LARGE_CAULDRON.getDefaultState()
@@ -111,13 +143,15 @@ class MultiFluidMixingRecipeComponent(
             .map { holders -> holders.firstOrNull()?.value() }
             .orElse(null)
 
-    /** 仅供调试/文档：这条配方还额外需要哪些流体 */
-    @Suppress("unused")
-    fun extraFluidSummary(): List<String> = recipe.extraFluids.map { requirement ->
-        "${requirement.amount}mB ${requirement.id()}"
-    }
-
     private fun HasCauldronSimple.fluid() = this.fluid
+
+    companion object {
+        /** 信息文字的位置，与上游各组件一致 */
+        private const val INFO_X = 12
+        private const val INFO_Y = 106
+
+        private const val EXTRA_FLUID_KEY = "gui.anvilcraft_fluid.guide.extra_fluid"
+    }
 }
 
 /**
