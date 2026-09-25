@@ -95,10 +95,26 @@ class MultiFluidMixingRecipe(
         .setItemOutputOffset(Vec3(0.0, -0.75, 0.0))
         .setResultItems(results)
         .setCauldronOffset(CAULDRON_OFFSET)
-        .setHasCauldron(cauldron)
-        .addOutcome(ExtraFluidOutcome(extraFluids, fluidResults)),
+        .setHasCauldron(cauldron),
     maxEfficiency,
 ) {
+    /**
+     * ⚠️ 额外流体的**扣除与产出放在这里**，而不是挂成自定义产出（`Property#addOutcome`）。
+     *
+     * 实机反馈（2026-09-25）：挂成自定义 `IRecipeOutcome` 时，配方能匹配（主流体与输入物品
+     * 都照常被消耗），但**额外流体没被扣走、产物也没进锅**——那条自定义产出根本没被执行。
+     * `LargeCauldronBlockEntity#triggerOneRecipe` 明确会调用 `recipe.assemble(...)`，
+     * 所以放在这里一定跑得到。
+     *
+     * 客户端没有锅的方块实体，[ExtraFluidOutcome] 取不到就返回，不会产生副作用。
+     */
+    override fun assemble(
+        context: InWorldRecipeContext,
+        registries: net.minecraft.core.HolderLookup.Provider,
+    ): ItemStack {
+        ExtraFluidOutcome(extraFluids, fluidResults).accept(context)
+        return super.assemble(context, registries)
+    }
     override fun getSerializer(): RecipeSerializer<MultiFluidMixingRecipe> =
         AddonRecipeTypes.MULTI_FLUID_MIXING_SERIALIZER.get()
 
