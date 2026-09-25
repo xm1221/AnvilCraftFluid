@@ -70,6 +70,7 @@
   "anvilcraft_fluid.configuration.gold_fluid_per_curse.tooltip": "熔融金每洗掉 1 条诅咒附魔消耗的 mB，并按同量产出诅咒金液体",
   "anvilcraft_fluid.configuration.frost_fluid_per_enchantment": "浮霜液体洗附魔耗量",
   "anvilcraft_fluid.configuration.frost_fluid_per_enchantment.tooltip": "浮霜液体每洗掉 1 条附魔消耗的 mB；洗下来的魔咒按上游公式 2^(等级-1) mB 变成液态魔咒",
+  "gui.anvilcraft_fluid.guide.amount": "%1$smB",
   "gui.anvilcraft_fluid.guide.extra_fluid": "另需 %1$smB 的 %2$s",
   "gui.anvilcraft_fluid.category.cauldron_reaction": "炼药锅流体反应",
   "gui.anvilcraft_fluid.cauldron_reaction.frost.0": "洗掉物品上的全部附魔",

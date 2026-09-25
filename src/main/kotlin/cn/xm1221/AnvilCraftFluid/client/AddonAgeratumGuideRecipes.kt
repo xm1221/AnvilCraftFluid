@@ -130,21 +130,55 @@ class MultiFluidMixingRecipeComponent(
     override fun getOutputBlockState(): BlockState = largeCauldron()
 
     /**
-     * 画图：**巨型铁砧 + 大型炼药锅**。
+     * 画图：**左边竖排"流体 + 消耗量"，中间大铁砧砸大锅，右边结果**。
+     *
+     * ## 为什么这么排
+     *
+     * 藿香手册里**画不出流体**（可用标签只有 block/item/recipe/text…，没有 fluid），
+     * 而且大锅模型在手册里**不渲染内部液体**。所以：
+     *
+     * - 每种流体都用**它的桶**当图标，**竖着排**，右边跟上要消耗的量（`1000mB`）；
+     * - **主流体（锅里那种）也要单独列出来**——锅不显示内部液体，不列就看不出来；
+     * - 物品输入接着排在同一个输入列里（物品自带数量角标），与流体同等待遇；
+     * - 中间仍是**大铁砧 + 大型炼药锅**：锅不渲染液体，但机器必须是它；
+     * - 右边是结果：产出物品 + 产出流体的桶。
+     *
+     * ## 遮挡关系（材质尺寸不同，只能自己定）
      *
      * 基类 `MDBaseAnvilRecipeComponent#renderRecipe` 把铁砧写死成普通 `Blocks.ANVIL`，
-     * 而本模组的配方是"**大铁砧砸大锅**"，所以照它的排布规则重画一遍，
-     * 只把铁砧换成巨型铁砧（`HALF = MID_CENTER` 才是可渲染的那一块）。
+     * 排布也是按"小而扁"的普通铁砧定的。巨型铁砧**又高又大**，所以：
+     *
+     * - 铁砧画在锅**上方**（`BLOCK_Y - 2 * BLOCK_SIZE`），**z 取 100**（比锅的 10 大，
+     *   即更靠近观察者），避免被锅的体块压住；
+     * - 锅取 `HALF = MID_CENTER`（否则九宫格画成碎片）；
+     * - 输入列放在 x≈8（图标）/28（文字），与锅（x=128）留足横向距离。
      */
     override fun renderRecipe(context: MDRenderContext, mouseX: Float, mouseY: Float) {
         val graphics = context.graphics()
-        val ingredients = getIngredients()
 
-        // 输入物品（含额外流体的桶）
-        AgeratumUtil.renderItems(context, ingredients, mouseX, mouseY, INPUT_ITEM_X, ITEM_Y)
-        if (ingredients.isNotEmpty()) AgeratumUtil.renderArrow(graphics, INPUT_ARROW_X, ITEM_Y - 6)
+        // ── 输入列：先流体（带消耗量），后物品，竖着排 ──
+        var row = 0
+        fluidInputs().forEach { (bucket, amountMb) ->
+            val y = INPUT_ROW_Y + row * ROW_STEP
+            AgeratumUtil.renderItem(context, bucket, mouseX, mouseY, INPUT_ICON_X, y)
+            AgeratumUtil.renderText(
+                graphics,
+                Component.translatable(AMOUNT_KEY, amountMb),
+                INPUT_TEXT_X,
+                y + 4,
+            )
+            row++
+        }
+        getIngredients().forEach { ingredient ->
+            val y = INPUT_ROW_Y + row * ROW_STEP
+            AgeratumUtil.renderItem(context, ingredient, mouseX, mouseY, INPUT_ICON_X, y)
+            row++
+        }
+        if (row > 0) {
+            AgeratumUtil.renderArrow(graphics, INPUT_ARROW_X, INPUT_ROW_Y + (row - 1) * ROW_STEP / 2 + 4)
+        }
 
-        // 机器：巨型铁砧 + 大型炼药锅
+        // ── 机器：巨型铁砧（z=100，压在锅前面）+ 大型炼药锅 ──
         val anvilY = BLOCK_Y - 2 * AgeratumUtil.BLOCK_SIZE
         AgeratumUtil.renderBlock(context, giantAnvil(), mouseX, mouseY, INPUT_BLOCK_X, anvilY, 100)
         val inputBlocks = getInputBlockStates()
@@ -161,26 +195,28 @@ class MultiFluidMixingRecipeComponent(
             )
         }
 
-        // 输出物品 / 输出方块
+        // ── 结果列：产出物品 + 产出流体的桶，同样竖着排 ──
         AgeratumUtil.renderArrow(graphics, OUTPUT_ARROW_X, ITEM_Y - 6)
-        AgeratumUtil.renderItems(context, getResultItems(), mouseX, mouseY, OUTPUT_ITEM_X, ITEM_Y)
+        AgeratumUtil.renderItems(context, getResultItems(), mouseX, mouseY, OUTPUT_ICON_X, ITEM_Y)
+
         val outputBlock = getOutputBlockState()
         if (!outputBlock.isAir) {
             AgeratumUtil.renderBlock(context, outputBlock, mouseX, mouseY, OUTPUT_BLOCK_X, BLOCK_Y, 0)
         }
+    }
 
-        // 额外流体还要多少（图上用桶表示，数量写在这里）
-        recipe.extraFluids.forEachIndexed { index, requirement ->
-            val bucketName = requirement.candidates().firstOrNull()
-                ?.let { ItemStack(it.bucket).hoverName }
-                ?: Component.literal(requirement.id())
-            AgeratumUtil.renderText(
-                graphics,
-                Component.translatable(EXTRA_FLUID_KEY, requirement.amount, bucketName),
-                INFO_X,
-                INFO_Y + index * 11,
-            )
+    /**
+     * 输入列里所有的流体：主流体（锅里那种）+ 额外流体，统统换成"桶 + 消耗量"。
+     *
+     * ⚠️ 主流体必须列出来：手册里的大锅**不渲染内部液体**，不列就完全看不出锅里要什么。
+     */
+    private fun fluidInputs(): List<Pair<ItemIngredientPredicate, Int>> = buildList {
+        primaryFluid()?.let { add(it to recipe.cauldron.consume()) }
+        recipe.extraFluids.forEach { requirement ->
+            requirement.candidates().firstOrNull()?.let { add(it to requirement.amount) }
         }
+    }.mapNotNull { (fluid, amount) ->
+        fluid.bucket?.let { bucket -> ItemIngredientPredicate.of(bucket).build() to amount }
     }
 
     /** 巨型铁砧只画正中一块 */
@@ -200,18 +236,22 @@ class MultiFluidMixingRecipeComponent(
     private fun HasCauldronSimple.fluid() = this.fluid
 
     companion object {
-        /** 信息文字的位置，与上游各组件一致 */
-        private const val INFO_X = 12
-        private const val INFO_Y = 106
+        /** 输入列：图标 x、文字 x、首行 y、行距（竖着排） */
+        private const val INPUT_ICON_X = 8
+        private const val INPUT_TEXT_X = 28
+        private const val INPUT_ROW_Y = 14
+        private const val ROW_STEP = 22
 
-        private const val EXTRA_FLUID_KEY = "gui.anvilcraft_fluid.guide.extra_fluid"
-
-        // 槽位坐标：与基类 renderRecipe 里那套一致，只是铁砧换成了巨型铁砧
-        private const val INPUT_ITEM_X = 40
-        private const val OUTPUT_ITEM_X = 194
-        private const val ITEM_Y = 46
+        /** 输入列与机器之间、机器与结果之间的箭头 */
         private const val INPUT_ARROW_X = 86
         private const val OUTPUT_ARROW_X = 138
+
+        /** 结果列的图标 x 与首行 y（与基类一致） */
+        private const val OUTPUT_ICON_X = 194
+        private const val ITEM_Y = 46
+
+        /** 流体消耗量文字：`1000mB` */
+        private const val AMOUNT_KEY = "gui.anvilcraft_fluid.guide.amount"
     }
 }
 
