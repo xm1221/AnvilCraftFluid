@@ -201,7 +201,7 @@ object AddonRecipeHandler {
             "molten_gold" to Blocks.GOLD_BLOCK,
             "molten_copper" to Blocks.COPPER_BLOCK,
             "molten_tungsten" to ModBlocks.TUNGSTEN_BLOCK.get(),
-            "molten_royal_steel" to ModBlocks.ROYAL_STEEL_BLOCK.get(),
+            // 熔融皇家钢故意不在此列：要留给"细雪 + 熔融皇家钢 + 浮霜金属锭 → 浮霜液体"，否则通用冷却先把它打成块
             "molten_lead" to ModBlocks.LEAD_BLOCK.get(),
             "molten_silver" to ModBlocks.SILVER_BLOCK.get(),
             "molten_tin" to ModBlocks.TIN_BLOCK.get(),
@@ -266,7 +266,7 @@ object AddonRecipeHandler {
             "molten_gold" to Blocks.GOLD_BLOCK,
             "molten_copper" to Blocks.COPPER_BLOCK,
             "molten_tungsten" to ModBlocks.TUNGSTEN_BLOCK.get(),
-            "molten_royal_steel" to ModBlocks.ROYAL_STEEL_BLOCK.get(),
+            // 熔融皇家钢故意不在此列：要留给"细雪 + 熔融皇家钢 + 浮霜金属锭 → 浮霜液体"，否则通用冷却先把它打成块
             "molten_lead" to ModBlocks.LEAD_BLOCK.get(),
             "molten_silver" to ModBlocks.SILVER_BLOCK.get(),
             "molten_tin" to ModBlocks.TIN_BLOCK.get(),

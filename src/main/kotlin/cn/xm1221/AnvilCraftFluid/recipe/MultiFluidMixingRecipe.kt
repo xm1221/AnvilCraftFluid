@@ -95,7 +95,9 @@ class MultiFluidMixingRecipe(
         .setItemOutputOffset(Vec3(0.0, -0.75, 0.0))
         .setResultItems(results)
         .setCauldronOffset(CAULDRON_OFFSET)
-        .setHasCauldron(cauldron),
+        .setHasCauldron(cauldron)
+        // 专用配方要压过通用的"熔液冷却成块"（用户反馈：银块抢了矿石、块抢了浮霜流体）
+        .setPriority(SPECIFIC_RECIPE_PRIORITY),
     maxEfficiency,
 ) {
     /**
@@ -185,6 +187,9 @@ class MultiFluidMixingRecipe(
     companion object {
         /** 与上游固液反应同一套偏移：铁砧落点下方一格是锅 */
         private val CAULDRON_OFFSET: Vec3i = Vec3i(0, -1, 0)
+
+        /** 本模组自研配方都属于"专用"配方，优先级给高值 */
+        private const val SPECIFIC_RECIPE_PRIORITY: Int = 100
     }
 }
 
