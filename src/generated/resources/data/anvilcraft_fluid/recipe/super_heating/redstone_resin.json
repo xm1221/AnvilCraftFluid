@@ -1,0 +1,17 @@
+{
+  "type": "anvilcraft:super_heating",
+  "fluid": "minecraft:water",
+  "ingredients": [
+    {
+      "items": "anvilcraft:resin_block"
+    },
+    {
+      "count": 3,
+      "items": "minecraft:redstone"
+    }
+  ],
+  "transform": {
+    "amount": 1000,
+    "id": "anvilcraft_fluid:redstone_resin"
+  }
+}

@@ -3,7 +3,7 @@
   "criteria": {
     "has_the_recipe": {
       "conditions": {
-        "recipe": "anvilcraft_fluid:solid_liquid/iron_block_from_molten_iron"
+        "recipe": "anvilcraft_fluid:super_heating/redstone_resin"
       },
       "trigger": "minecraft:recipe_unlocked"
     }
@@ -15,7 +15,7 @@
   ],
   "rewards": {
     "recipes": [
-      "anvilcraft_fluid:solid_liquid/iron_block_from_molten_iron"
+      "anvilcraft_fluid:super_heating/redstone_resin"
     ]
   }
 }

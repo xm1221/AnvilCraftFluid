@@ -23,6 +23,7 @@ import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.material.Fluid
 import net.minecraft.world.level.material.Fluids
+import javax.print.attribute.standard.MediaSize
 
 /**
  * 配方 datagen。
@@ -67,6 +68,7 @@ object AddonRecipeHandler {
         multiFluidMixingRecipes(provider)
         coolingRecipes(provider)
         solidLiquidRecipes(provider)
+        otherRecipes(provider)
     }
 
     // ─────────────── 自定义类型：多流体 + 物品 → 物品/流体 ───────────────
@@ -100,8 +102,6 @@ object AddonRecipeHandler {
                 "multi_fluid_mixing/molten_royal_steel",
                 items = listOf(ItemIngredientPredicate.Builder.item().of(Items.DIAMOND).build()),
                 results = emptyList(),
-                // ⚠️ 用窄标签（只有红/黄/蓝/绿四种），不是 MOLTEN_GEM——
-                //    熔融石英与熔融紫水晶**不能**炼皇家钢（用户拍板）
                 fluidIngredients = listOf(
                     FluidRequirement.of(iron.source, BUCKET),
                     FluidRequirement.of(AddonFluidTags.ROYAL_STEEL_GEMS, BUCKET),
@@ -110,10 +110,6 @@ object AddonRecipeHandler {
             )
         }
 
-        // 浮霜流体：1000 mB 细雪 + 1 浮霜金属粒 → 1000 mB 浮霜流体（用户口径）
-        // ⚠️ 早先是"细雪 + 熔融皇家钢 + 浮霜金属**锭**"。用户已改口径：熔融皇家钢那一份去掉、
-        //    催化剂从锭降成**粒**；皇家钢改到下游用（浮霜流体 + 皇家钢 —时移— 浮霜金属，
-        //    见 [timeWarpRecipes]）。
         val powderSnow = powderSnowFluid()
         val frost = AddonFluids.byName(FROST_FLUID)
         if (powderSnow != null && frost != null) {
@@ -218,10 +214,7 @@ object AddonRecipeHandler {
             )
         }
 
-        // 熔融黄玉 10 mB + 熔融铁 1000 mB → 磁铁块（用户指定量）
-        // ⚠️ 这条本来写在上游的 `anvilcraft:fluid_mixing` 里，配方在游戏里确实生效，
-        //    但**手册里画不出来**（藿香没给那个类型注册展示组件），实机表现为空白。
-        //    改用自研类型后与矿石/皇家钢用同一个展示组件，图就出来了。
+        // 熔融黄玉 10 mB + 熔融铁 1000 mB → 磁铁块
         AddonFluids.byName("molten_topaz")?.let { topaz ->
             multiFluid(
                 provider,
@@ -235,6 +228,8 @@ object AddonRecipeHandler {
                 fluidResults = emptyList(),
             )
         }
+
+
     }
 
     // ───────────────────────── 冷却：一锅熔融流体 → 方块 ─────────────────────────
@@ -244,10 +239,6 @@ object AddonRecipeHandler {
      *
      * 用现成的 `anvilcraft:solid_liquid`：**不写 `requires(...)`** 就是"只要锅里有这种流体"，
      * 铁砧落下即把满锅（1000 mB）换成对应的方块。这正好是熔融配方的逆过程。
-     *
-     * ⚠️ 无物品输入的配方要靠 `HasCauldron` 谓词才会被大型炼药锅匹配（见
-     * `LargeCauldronBlockEntity#triggerOneRecipe` 的两条匹配路径），而 `solid_liquid`
-     * 自带该谓词，所以不用像自研类型那样额外补一个。
      */
     private fun coolingRecipes(provider: RegistrumRecipeProvider) {
         val blockByFluid = listOf(
@@ -255,12 +246,6 @@ object AddonRecipeHandler {
             "molten_gold" to Blocks.GOLD_BLOCK,
             "molten_copper" to Blocks.COPPER_BLOCK,
             "molten_tungsten" to ModBlocks.TUNGSTEN_BLOCK.get(),
-            // ⚠️ 熔融皇家钢**可以**留在这里（此前被误删，已加回）：
-            //    `handleGiantAnvilImpact` 先跑**物品**那一遍，只有流体没被改动才会跑纯流体那一遍
-            //    （`sameFluids` 把关）。所以带物品输入的自研配方（矿石、皇家钢、浮霜…，优先级 100）
-            //    总在物品那一遍就命中，纯流体的冷却配方根本抢不到，不必为了避让而删。
-            //    （浮霜那条曾经也吃熔融皇家钢，现已改成只吃"细雪 + 浮霜金属粒"，更无冲突。）
-            //    当初删它的真因是"自研类型还没设优先级"，优先级已经设好了。
             "molten_royal_steel" to ModBlocks.ROYAL_STEEL_BLOCK.get(),
             "molten_lead" to ModBlocks.LEAD_BLOCK.get(),
             "molten_silver" to ModBlocks.SILVER_BLOCK.get(),
@@ -442,41 +427,25 @@ object AddonRecipeHandler {
      * `fluid_mixing` 吃不了物品，留着只会多出一条不该存在的配方（实机已发现）。
      */
 
-    // ───────────────────── 固液反应（炼药锅 + 铁砧） ─────────────────────
 
-    /** 熔融流体 + 材料 → 方块（与"熔融"方向相反：把熔融液浇回方块） */
+
+
     private fun solidLiquidRecipes(provider: RegistrumRecipeProvider) {
-        // 熔融石英 + 下界石英 → 石英块
-        AddonFluids.byName("molten_quartz")?.let { quartz ->
-            SolidLiquidRecipe.builder()
-                .cauldron(quartz.source)
-                .consume(BUCKET)
-                .requires(Items.QUARTZ)
-                .result(Blocks.QUARTZ_BLOCK)
-                .save(provider, AnvilCraftFluid.of("solid_liquid/quartz_block_from_molten_quartz"))
-        }
-
-        // 熔融绿宝石 + 绿宝石 → 绿宝石块
-        AddonFluids.byName("molten_emerald")?.let { emerald ->
-            SolidLiquidRecipe.builder()
-                .cauldron(emerald.source)
-                .consume(BUCKET)
-                .requires(Items.EMERALD)
-                .result(Blocks.EMERALD_BLOCK)
-                .save(provider, AnvilCraftFluid.of("solid_liquid/emerald_block_from_molten_emerald"))
-        }
-
-        // 熔融铁 + 铁锭 ×9 → 铁块
-        AddonFluids.byName("molten_iron")?.let { iron ->
-            SolidLiquidRecipe.builder()
-                .cauldron(iron.source)
-                .consume(BUCKET)
-                .requires(Items.IRON_INGOT, 9)
-                .result(Blocks.IRON_BLOCK)
-                .save(provider, AnvilCraftFluid.of("solid_liquid/iron_block_from_molten_iron"))
-        }
     }
 
+    private fun otherRecipes(provider: RegistrumRecipeProvider) {
+
+        AddonFluids.byName("redstone_resin")?.cauldron?.let {
+            SuperHeatingRecipe.builder()
+                .fluid(Fluids.WATER)
+                .requires(ModBlocks.RESIN_BLOCK)
+                .requires(Items.REDSTONE,3)
+                .transform(it.get(),BUCKET)
+                .save(provider, AnvilCraftFluid.of("super_heating/redstone_resin"))
+        }
+
+
+    }
     /**
      * 细雪流体。
      *
