@@ -239,22 +239,6 @@ class RedstoneResinBlock(
         val wasPowered = live.getValue(POWERED)
         if (wasPowered == powered && newInput == live.getValue(INPUT)) return false
 
-        // 排查"放下来时边框闪一下"用：点亮/熄灭各打一行 DEBUG。
-        // 点亮时把六个方向的信号一起打出来，日志里能直接看出是**哪个方向的邻居**在骗我们
-        // （例如 DOWN=15 说明脚下的导电方块在被谁强充能，某一侧=15 说明那侧有线/元件报着旧功率）。
-        if (wasPowered != powered) {
-            if (powered) {
-                AnvilCraftFluid.LOGGER.debug(
-                    "[树脂] {} 点亮，来自 {}，六向信号={}",
-                    pos,
-                    input,
-                    Direction.values().associateWith { signalFrom(level, pos, it) },
-                )
-            } else {
-                AnvilCraftFluid.LOGGER.debug("[树脂] {} 熄灭", pos)
-            }
-        }
-
         level.setBlock(pos, live.setValue(POWERED, powered).setValue(INPUT, newInput), Block.UPDATE_CLIENTS)
         return true
     }

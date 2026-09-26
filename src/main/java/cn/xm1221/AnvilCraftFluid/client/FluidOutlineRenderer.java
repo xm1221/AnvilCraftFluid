@@ -112,10 +112,11 @@ public final class FluidOutlineRenderer {
     }
 
     private static boolean isConcaveCorner(BlockAndTintGetter level, BlockPos pos, Direction d) {
-        BlockPos airPos = pos.relative(d);
-        if (!level.getFluidState(airPos).isEmpty()) return false;
-        BlockPos beyond = airPos.relative(d);
-        return !level.getFluidState(beyond).isEmpty();
+        BlockPos mid = pos.relative(d);
+        // 中间那格必须是真的空气才算凹角。
+        // "流体 方块 流体"这种排布：中间是实心方块时这一侧的壳面照样能看见，剔掉就漏了。
+        if (!level.getBlockState(mid).isAir()) return false;
+        return !level.getFluidState(mid.relative(d)).isEmpty();
     }
 
     private static float cornerHeight(
@@ -167,11 +168,8 @@ public final class FluidOutlineRenderer {
     ) {
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
-                if (i == 0 && j == 0 && !diagNW) continue;
-                if (i == 2 && j == 0 && !diagNE) continue;
-                if (i == 0 && j == 2 && !diagSW) continue;
-                if (i == 2 && j == 2 && !diagSE) continue;
-
+                // 角块一律照画：以前按对角可见性跳过，两个正交邻居都是同种流体时
+                // 顶面就会缺一个 s×s 的方块（下面是个通到底的洞）。现在不切了。
                 float xa = cx[i], xb = cx[i + 1];
                 float za = cz[j], zb = cz[j + 1];
                 if (xb <= xa || zb <= za) continue;
@@ -331,6 +329,20 @@ public final class FluidOutlineRenderer {
             VertexConsumer buffer,
             FluidState fluidState
     ) {
+        emit(level, pos, buffer, fluidState, null);
+    }
+
+    /**
+     * @param cap 原版这一格画出来的顶点（mixin 捕获的）。液面高度和体块形状都由它提供，
+     *            为 null 或这一格原版什么都没画时才退回本地估算（只作兜底）。
+     */
+    public static void emit(
+            BlockAndTintGetter level,
+            BlockPos pos,
+            VertexConsumer buffer,
+            FluidState fluidState,
+            FluidVertexCapture cap
+    ) {
         FluidSpec spec = specOf(fluidState.getType());
         if (spec == null || !spec.getOutlined() || spec.getOutlineTexture() == null) return;
 
@@ -361,19 +373,35 @@ public final class FluidOutlineRenderer {
         boolean diagSW = sameFluidBody(level.getBlockState(pos.south().west()).getFluidState(), fluidState);
         boolean diagSE = sameFluidBody(level.getBlockState(pos.south().east()).getFluidState(), fluidState);
 
+        // 斜角相邻的两个流体要能在角上接上：只要有一个斜对角是同种流体，
+        // 这一格**面向空气**的那几侧就回到原本的尺寸（不再内缩）。
+        // 代价是那几侧的描边边带会消失——这是用户拍板的取舍。
+        boolean diagAny = diagNW || diagNE || diagSW || diagSE;
+        boolean bareN = diagAny && level.getBlockState(pos.north()).isAir();
+        boolean bareS = diagAny && level.getBlockState(pos.south()).isAir();
+        boolean bareE = diagAny && level.getBlockState(pos.east()).isAir();
+        boolean bareW = diagAny && level.getBlockState(pos.west()).isAir();
+        boolean insetN = oN && !bareN;
+        boolean insetS = oS && !bareS;
+        boolean insetE = oE && !bareE;
+        boolean insetW = oW && !bareW;
+
         boolean shellN = oN && !isConcaveCorner(level, pos, Direction.NORTH);
         boolean shellS = oS && !isConcaveCorner(level, pos, Direction.SOUTH);
         boolean shellE = oE && !isConcaveCorner(level, pos, Direction.EAST);
         boolean shellW = oW && !isConcaveCorner(level, pos, Direction.WEST);
 
-        float hNW = cornerHeight(level, pos, Direction.NORTH, Direction.WEST, fluidState);
-        float hNE = cornerHeight(level, pos, Direction.NORTH, Direction.EAST, fluidState);
-        float hSW = cornerHeight(level, pos, Direction.SOUTH, Direction.WEST, fluidState);
-        float hSE = cornerHeight(level, pos, Direction.SOUTH, Direction.EAST, fluidState);
+        // 四个角的液面高度：直接从**原版自己画出来的顶点**里读（每个角取该角最高的顶点）。
+        // 这就是"液面由原生方法渲染"：高度是原版的产物，不是我们算的。
+        float[] vh = cap != null && cap.vertices() > 0 ? captureCornerHeights(cap, x, y, z) : null;
+        float hNW = vh != null && vh[0] >= 0.0F ? vh[0] : cornerHeight(level, pos, Direction.NORTH, Direction.WEST, fluidState);
+        float hNE = vh != null && vh[1] >= 0.0F ? vh[1] : cornerHeight(level, pos, Direction.NORTH, Direction.EAST, fluidState);
+        float hSW = vh != null && vh[2] >= 0.0F ? vh[2] : cornerHeight(level, pos, Direction.SOUTH, Direction.WEST, fluidState);
+        float hSE = vh != null && vh[3] >= 0.0F ? vh[3] : cornerHeight(level, pos, Direction.SOUTH, Direction.EAST, fluidState);
 
         float s = SHRINK;
-        float[] cx = { oW ? x + s : x, x + s, x + 1 - s, oE ? x + 1 - s : x + 1 };
-        float[] cz = { oN ? z + s : z, z + s, z + 1 - s, oS ? z + 1 - s : z + 1 };
+        float[] cx = { insetW ? x + s : x, x + s, x + 1 - s, insetE ? x + 1 - s : x + 1 };
+        float[] cz = { insetN ? z + s : z, z + s, z + 1 - s, insetS ? z + 1 - s : z + 1 };
 
         float yBot = y;
         float yNW = oU ? y + hNW : y + 1.0F;
@@ -381,16 +409,7 @@ public final class FluidOutlineRenderer {
         float ySW = oU ? y + hSW : y + 1.0F;
         float ySE = oU ? y + hSE : y + 1.0F;
 
-        // ── 竖直 L 角（用户 2026-09 报的摆法）──
-        // 本格上方是同种流体（!oU，所以顶面被顶到格顶），侧面那格也是同种流体、但它的**液面更低**
-        // （8/9 的流动液之类）——于是本格朝那一侧顶到格边的 s 宽带整块凸在对方液面之上，
-        // 露出一小块"多余的方块"。
-        // 做法（用户拍板）：**切掉突出部分 + 补面**。只切不补会把体块开个洞，所以三条一起做：
-        //   ① 那条带的顶面整条降到对方液面高度（切）；
-        //   ② 那条带自己朝外的两条墙也降到同一高度（补）；
-        //   ③ 内缩平面上的竖直切面：把该侧 oX 置真，emitFluidSides 就会在内缩后的边界上补出
-        //      一整面墙，露在对方液面之上的那部分正好就是切面（补）。
-        // 判据与水平方向共用一套（同一侧有同种流体），只多一个"对方液面比我低"。
+       
         float[] ledgeH = { -1.0F, -1.0F, -1.0F, -1.0F };   // W, E, N, S
         boolean hasLedge = false;
         if (!oU) {
@@ -412,6 +431,16 @@ public final class FluidOutlineRenderer {
         }
 
         // ── 1. 流体本体 ──
+        // 绝大多数格子（四个对角都是同种流体、也没有竖直 L 角）根本没有切角要做：
+        // 直接把原版画出来的顶点水平内缩后原样重放 —— 形状、面、光照全是原版的。
+        boolean vanillaBody = cap != null && cap.vertices() > 0 && !hasLedge
+                && diagNW && diagNE && diagSW && diagSE;
+        if (vanillaBody) {
+            emitVanillaBody(buffer, cap, x, z, insetW, insetE, insetN, insetS);
+        }
+
+        // 有切角（对角是别的流体/空气）或有竖直 L 角的格子：走自己那套"切掉 + 补面"
+        if (!vanillaBody) {
         Emitter fluid = new Emitter(buffer, WHITE, cellLight, false);
 
         emitFluidHorizontalGrid(fluid, fluidSprite, x, z, cxIn, czIn,
@@ -457,14 +486,24 @@ public final class FluidOutlineRenderer {
                 if (oW) sideQuad(fluid, fluidSprite, bxA, bzA, bxA, bzB, lh, lh, yBot, -1, 0, 0);
                 if (oE) sideQuad(fluid, fluidSprite, bxB, bzB, bxB, bzA, lh, lh, yBot, 1, 0, 0);
             }
+
+            // 竖直 L 角只切"角上那一小块"：把这条带里不在角上的部分按原高度补回来
+            emitBandRestore(fluid, fluidSprite, x, z, d, bxA, bxB, bzA, bzB, yBot,
+                    yNW, yNE, ySW, ySE,
+                    d < 2 ? insetN : insetW,
+                    d < 2 ? insetS : insetE);
+        }
         }
 
         // ── 2. 内壳：完整 quad，不做切角 ──
+        // 邻居那格也是"带壳流体"（它在这一侧同样画壳面）→ 两面贴到格子边界上对接，中间不留缝；
+        // 邻居是空气/实心方块/普通流体 → 照旧内缩 INSET，免得和它的表面重合打架。
+        // 上下两面（顶盖/底盖）一律留 INSET。
         float ins = INSET;
-        float bx0 = oW ? x + ins : x;
-        float bx1 = oE ? x + 1 - ins : x + 1;
-        float bz0 = oN ? z + ins : z;
-        float bz1 = oS ? z + 1 - ins : z + 1;
+        float bx0 = oW ? (shelledNeighbour(level, pos, Direction.WEST) ? x : x + ins) : x;
+        float bx1 = oE ? (shelledNeighbour(level, pos, Direction.EAST) ? x + 1 : x + 1 - ins) : x + 1;
+        float bz0 = oN ? (shelledNeighbour(level, pos, Direction.NORTH) ? z : z + ins) : z;
+        float bz1 = oS ? (shelledNeighbour(level, pos, Direction.SOUTH) ? z + 1 : z + 1 - ins) : z + 1;
         float bBot = oD ? y + ins : y;
         float bTopNW = oU ? y + hNW - ins : y + 1.0F - ins;
         float bTopNE = oU ? y + hNE - ins : y + 1.0F - ins;
@@ -511,7 +550,6 @@ public final class FluidOutlineRenderer {
                     bx0, bBot, bz1, su0, sv1,
                     0, -1, 0);
         }
-        // 壳不动：壳是一条始终连续的描边，不跟着体块的切口走（用户 2026-09 口径）
         if (shellN) {
             shell.quad(
                     bx0, bTopNW, bz0, su0, sv0,
@@ -546,6 +584,55 @@ public final class FluidOutlineRenderer {
         }
     }
 
+    /**
+     * 邻居那格在与我相邻的这一侧会不会也画内壳（= 它也是"带壳流体"）。
+     * 会画 → 两面在格子边界上对接，无缝；不会画 → 我们这面退回内缩，免得和它的表面重合。
+     */
+    private static boolean shelledNeighbour(BlockAndTintGetter level, BlockPos pos, Direction d) {
+        BlockPos np = pos.relative(d);
+        FluidSpec spec = specOf(level.getBlockState(np).getFluidState().getType());
+        if (spec == null || !spec.getOutlined() || spec.getOutlineTexture() == null) return false;
+        // 它朝我这一侧也得真的画壳面（中间隔的那格是我这格、有流体，不会算凹角）
+        return !isConcaveCorner(level, np, d.getOpposite());
+    }
+
+    /** 从原版顶点里读这格四个角的液面高度（相对格底）：每个角取落在该角上最高的那个顶点 */
+    private static float[] captureCornerHeights(FluidVertexCapture cap, float x, float y, float z) {
+        float[] h = { -1.0F, -1.0F, -1.0F, -1.0F };   // NW, NE, SW, SE
+        int n = cap.vertices();
+        for (int i = 0; i < n; i++) {
+            int corner = (cap.get(i, 0) - x > 0.5F ? 1 : 0) + (cap.get(i, 2) - z > 0.5F ? 2 : 0);
+            float ly = cap.get(i, 1) - y;
+            if (ly > h[corner]) h[corner] = ly;
+        }
+        return h;
+    }
+
+    /**
+     * 把原版画出来的这一格顶点原样重放出去，只把坐标按"该侧要内缩则水平内缩 s"重映射：
+     * 相邻方向有同种流体、或斜角相邻而这一侧是空气 → 那个方向回到原本的尺寸（两格的面正好接上），
+     * 其余暴露方向 → 内缩 s，与壳之间留出一圈描边。y 不动，液面就是原版的那个高度。
+     */
+    private static void emitVanillaBody(
+            VertexConsumer out, FluidVertexCapture cap,
+            float x, float z, boolean insetW, boolean insetE, boolean insetN, boolean insetS
+    ) {
+        int n = cap.vertices();
+        for (int i = 0; i < n; i++) {
+            float lx = cap.get(i, 0) - x;
+            float lz = cap.get(i, 2) - z;
+            if (lx <= 1.0E-4F) lx = insetW ? SHRINK : 0.0F;
+            else if (lx >= 1.0F - 1.0E-4F) lx = insetE ? 1.0F - SHRINK : 1.0F;
+            if (lz <= 1.0E-4F) lz = insetN ? SHRINK : 0.0F;
+            else if (lz >= 1.0F - 1.0E-4F) lz = insetS ? 1.0F - SHRINK : 1.0F;
+            out.addVertex(x + lx, cap.get(i, 1), z + lz)
+                    .setColor(255, 255, 255, 255)
+                    .setUv(cap.get(i, 3), cap.get(i, 4))
+                    .setUv2((int) cap.get(i, 5), (int) cap.get(i, 6))
+                    .setNormal(cap.get(i, 7), cap.get(i, 8), cap.get(i, 9));
+        }
+    }
+
     /** 一条水平面：竖直 L 角里被切下来的那条 s 宽带，补在相邻块的液面高度上 */
     private static void emitFlatTop(
             Emitter e, TextureAtlasSprite sprite, float x, float z,
@@ -561,6 +648,52 @@ public final class FluidOutlineRenderer {
                 xb, yTop, zb, ub, vb,
                 xb, yTop, za, ub, va,
                 0, 1, 0);
+    }
+
+    /**
+     * 竖直 L 角只切"角上那一小块"，不是整条边带：
+     * 把这条 s 宽的带里**不在角上**的部分按原高度（双线性）补回来，
+     * 于是被切下去的只剩每个角上 s×s 的那一块，高度由相邻块的液面决定（ledgeH）。
+     * 补回来的这块四面墙都提交，露在外面的那两面正好把角上那一块的台阶补上，另外两面藏在体内。
+     */
+    private static void emitBandRestore(
+            Emitter e, TextureAtlasSprite tex, float x, float z, int d,
+            float bxA, float bxB, float bzA, float bzB, float yBot,
+            float yNW, float yNE, float ySW, float ySE,
+            boolean insetAtLowEnd, boolean insetAtHighEnd
+    ) {
+        boolean alongZ = d < 2;
+        float lo = alongZ ? bzA : bxA;
+        float hi = alongZ ? bzB : bxB;
+        if (insetAtLowEnd) lo += SHRINK;
+        if (insetAtHighEnd) hi -= SHRINK;
+        if (hi - lo <= 1.0E-4F) return;
+
+        float x0 = alongZ ? bxA : lo;
+        float x1 = alongZ ? bxB : hi;
+        float z0 = alongZ ? lo : bzA;
+        float z1 = alongZ ? hi : bzB;
+
+        float t00 = bilinear(yNW, yNE, ySW, ySE, x0 - x, z0 - z);
+        float t10 = bilinear(yNW, yNE, ySW, ySE, x1 - x, z0 - z);
+        float t11 = bilinear(yNW, yNE, ySW, ySE, x1 - x, z1 - z);
+        float t01 = bilinear(yNW, yNE, ySW, ySE, x0 - x, z1 - z);
+
+        float ua = tex.getU(x0 - x);
+        float ub = tex.getU(x1 - x);
+        float va = tex.getV(z0 - z);
+        float vb = tex.getV(z1 - z);
+        e.quad(
+                x0, t00, z0, ua, va,
+                x0, t01, z1, ua, vb,
+                x1, t11, z1, ub, vb,
+                x1, t10, z0, ub, va,
+                0, 1, 0);
+
+        sideQuad(e, tex, x0, z0, x0, z1, t00, t01, yBot, -1, 0, 0);
+        sideQuad(e, tex, x1, z1, x1, z0, t11, t10, yBot, 1, 0, 0);
+        sideQuad(e, tex, x0, z0, x1, z0, t00, t10, yBot, 0, 0, -1);
+        sideQuad(e, tex, x0, z1, x1, z1, t01, t11, yBot, 0, 0, 1);
     }
 
     private static final class Emitter {
