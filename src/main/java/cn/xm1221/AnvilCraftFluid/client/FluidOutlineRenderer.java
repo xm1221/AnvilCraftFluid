@@ -5,6 +5,8 @@ import cn.xm1221.AnvilCraftFluid.init.AddonFluids;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -379,20 +381,83 @@ public final class FluidOutlineRenderer {
         float ySW = oU ? y + hSW : y + 1.0F;
         float ySE = oU ? y + hSE : y + 1.0F;
 
+        // ── 竖直 L 角（用户 2026-09 报的摆法）──
+        // 本格上方是同种流体（!oU，所以顶面被顶到格顶），侧面那格也是同种流体、但它的**液面更低**
+        // （8/9 的流动液之类）——于是本格朝那一侧顶到格边的 s 宽带整块凸在对方液面之上，
+        // 露出一小块"多余的方块"。
+        // 做法（用户拍板）：**切掉突出部分 + 补面**。只切不补会把体块开个洞，所以三条一起做：
+        //   ① 那条带的顶面整条降到对方液面高度（切）；
+        //   ② 那条带自己朝外的两条墙也降到同一高度（补）；
+        //   ③ 内缩平面上的竖直切面：把该侧 oX 置真，emitFluidSides 就会在内缩后的边界上补出
+        //      一整面墙，露在对方液面之上的那部分正好就是切面（补）。
+        // 判据与水平方向共用一套（同一侧有同种流体），只多一个"对方液面比我低"。
+        float[] ledgeH = { -1.0F, -1.0F, -1.0F, -1.0F };   // W, E, N, S
+        boolean hasLedge = false;
+        if (!oU) {
+            if (!oW) { float h = sampleHeight(level, pos.west(), fluidState, 1.0F); if (h < 1.0F - 1.0E-4F) { ledgeH[0] = y + h; hasLedge = true; } }
+            if (!oE) { float h = sampleHeight(level, pos.east(), fluidState, 1.0F); if (h < 1.0F - 1.0E-4F) { ledgeH[1] = y + h; hasLedge = true; } }
+            if (!oN) { float h = sampleHeight(level, pos.north(), fluidState, 1.0F); if (h < 1.0F - 1.0E-4F) { ledgeH[2] = y + h; hasLedge = true; } }
+            if (!oS) { float h = sampleHeight(level, pos.south(), fluidState, 1.0F); if (h < 1.0F - 1.0E-4F) { ledgeH[3] = y + h; hasLedge = true; } }
+        }
+        // 顶面用"切掉带"的 footprint；侧面也用同一份，好让 ③ 在切面上补出墙
+        float[] cxIn = cx;
+        float[] czIn = cz;
+        if (hasLedge) {
+            cxIn = cx.clone();
+            czIn = cz.clone();
+            if (ledgeH[0] >= 0.0F) cxIn[0] = cxIn[1];
+            if (ledgeH[1] >= 0.0F) cxIn[3] = cxIn[2];
+            if (ledgeH[2] >= 0.0F) czIn[0] = czIn[1];
+            if (ledgeH[3] >= 0.0F) czIn[3] = czIn[2];
+        }
+
         // ── 1. 流体本体 ──
         Emitter fluid = new Emitter(buffer, WHITE, cellLight, false);
 
-        emitFluidHorizontalGrid(fluid, fluidSprite, x, z, cx, cz,
+        emitFluidHorizontalGrid(fluid, fluidSprite, x, z, cxIn, czIn,
                 yNW, yNE, ySW, ySE, yBot,
                 diagNW, diagNE, diagSW, diagSE, true);
+        // 底面不切：切的是"顶面朝那一侧的那条带"，底面仍按整格画
         emitFluidHorizontalGrid(fluid, fluidSprite, x, z, cx, cz,
                 yNW, yNE, ySW, ySE, yBot,
                 diagNW, diagNE, diagSW, diagSE, false);
 
-        emitFluidSides(fluid, fluidSprite, x, z, cx, cz,
+        emitFluidSides(fluid, fluidSprite, x, z, cxIn, czIn,
                 yBot, yNW, yNE, ySW, ySE,
-                oW, oE, oN, oS,
+                ledgeH[0] >= 0.0F || oW,
+                ledgeH[1] >= 0.0F || oE,
+                ledgeH[2] >= 0.0F || oN,
+                ledgeH[3] >= 0.0F || oS,
                 diagNW, diagNE, diagSW, diagSE);
+
+        // 被切掉的那条带：顶面降到对方液面高度，并补上它自己朝外的两条墙
+        for (int d = 0; d < 4; d++) {
+            float lh = ledgeH[d];
+            if (lh < 0.0F) continue;
+
+            float bxA, bxB, bzA, bzB;
+            if (d == 0) {          // 西侧的带
+                bxA = cx[0]; bxB = cx[1]; bzA = czIn[0]; bzB = czIn[3];
+            } else if (d == 1) {   // 东侧的带
+                bxA = cx[2]; bxB = cx[3]; bzA = czIn[0]; bzB = czIn[3];
+            } else if (d == 2) {   // 北侧的带
+                bxA = cxIn[0]; bxB = cxIn[3]; bzA = cz[0]; bzB = cz[1];
+            } else {               // 南侧的带
+                bxA = cxIn[0]; bxB = cxIn[3]; bzA = cz[2]; bzB = cz[3];
+            }
+            if (bxB <= bxA || bzB <= bzA) continue;
+
+            emitFlatTop(fluid, fluidSprite, x, z, bxA, bxB, bzA, bzB, lh);
+
+            // 带自己朝外的两条墙（垂直于"带的方向"的那两侧；只在真正露在外面的方向画）
+            if (d < 2) {
+                if (oN) sideQuad(fluid, fluidSprite, bxA, bzA, bxB, bzA, lh, lh, yBot, 0, 0, -1);
+                if (oS) sideQuad(fluid, fluidSprite, bxA, bzB, bxB, bzB, lh, lh, yBot, 0, 0, 1);
+            } else {
+                if (oW) sideQuad(fluid, fluidSprite, bxA, bzA, bxA, bzB, lh, lh, yBot, -1, 0, 0);
+                if (oE) sideQuad(fluid, fluidSprite, bxB, bzB, bxB, bzA, lh, lh, yBot, 1, 0, 0);
+            }
+        }
 
         // ── 2. 内壳：完整 quad，不做切角 ──
         float ins = INSET;
@@ -406,7 +471,27 @@ public final class FluidOutlineRenderer {
         float bTopSW = oU ? y + hSW - ins : y + 1.0F - ins;
         float bTopSE = oU ? y + hSE - ins : y + 1.0F - ins;
 
-        Emitter shell = new Emitter(buffer, WHITE, FULL_BRIGHT, true);
+        // 内壳的颜色和自发光**可以跟着"有没有被点亮"走**（红石树脂胶体就是这么用的）：
+        //   · 声明了 outlineTintOn 的流体 → 点亮 = 亮色 + 全亮；未点亮 = outlineTintOff + 这一格的正常光照
+        //     （暗处自然就看不见，符合"未激活不亮"）
+        //   · 其余流体 → 贴图自带颜色（WHITE = 不染色）+ 全亮，行为和以前一样
+        // POWERED 直接按**原版属性**读：不依赖具体方块类，任何带这个属性的流体都能用。
+        int shellColor = WHITE;
+        int shellLight = FULL_BRIGHT;
+        if (spec.getOutlineTintOn() != null) {
+            BlockState state = level.getBlockState(pos);
+            boolean powered = state.hasProperty(BlockStateProperties.POWERED)
+                    && state.getValue(BlockStateProperties.POWERED);
+            if (powered) {
+                shellColor = spec.getOutlineTintOn();
+            } else {
+                Integer off = spec.getOutlineTintOff();
+                if (off != null) shellColor = off;
+                shellLight = cellLight;
+            }
+        }
+
+        Emitter shell = new Emitter(buffer, shellColor, shellLight, true);
         float su0 = shellSprite.getU(0.0F), su1 = shellSprite.getU(1.0F);
         float sv0 = shellSprite.getV(0.0F), sv1 = shellSprite.getV(1.0F);
 
@@ -426,6 +511,7 @@ public final class FluidOutlineRenderer {
                     bx0, bBot, bz1, su0, sv1,
                     0, -1, 0);
         }
+        // 壳不动：壳是一条始终连续的描边，不跟着体块的切口走（用户 2026-09 口径）
         if (shellN) {
             shell.quad(
                     bx0, bTopNW, bz0, su0, sv0,
@@ -458,6 +544,23 @@ public final class FluidOutlineRenderer {
                     bx1, bTopNE, bz0, su1, sv0,
                     1, 0, 0);
         }
+    }
+
+    /** 一条水平面：竖直 L 角里被切下来的那条 s 宽带，补在相邻块的液面高度上 */
+    private static void emitFlatTop(
+            Emitter e, TextureAtlasSprite sprite, float x, float z,
+            float xa, float xb, float za, float zb, float yTop
+    ) {
+        float ua = sprite.getU(xa - x);
+        float ub = sprite.getU(xb - x);
+        float va = sprite.getV(za - z);
+        float vb = sprite.getV(zb - z);
+        e.quad(
+                xa, yTop, za, ua, va,
+                xa, yTop, zb, ua, vb,
+                xb, yTop, zb, ub, vb,
+                xb, yTop, za, ub, va,
+                0, 1, 0);
     }
 
     private static final class Emitter {
