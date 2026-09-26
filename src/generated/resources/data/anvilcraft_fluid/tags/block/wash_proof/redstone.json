@@ -1,0 +1,48 @@
+{
+  "values": [
+    "#minecraft:buttons",
+    "#minecraft:pressure_plates",
+    "#minecraft:rails",
+    {
+      "id": "#anvilcraft:sliding_rails",
+      "required": false
+    },
+    {
+      "id": "anvilcraft:redstone_wire",
+      "required": false
+    },
+    {
+      "id": "anvilcraft:redstone_dice",
+      "required": false
+    },
+    {
+      "id": "anvilcraft:big_red_button",
+      "required": false
+    },
+    "minecraft:redstone_wire",
+    "minecraft:redstone_torch",
+    "minecraft:redstone_wall_torch",
+    "minecraft:lever",
+    "minecraft:tripwire",
+    "minecraft:tripwire_hook",
+    "minecraft:repeater",
+    "minecraft:comparator",
+    "minecraft:observer",
+    "minecraft:piston",
+    "minecraft:sticky_piston",
+    "minecraft:redstone_block",
+    "minecraft:redstone_lamp",
+    "minecraft:daylight_detector",
+    "minecraft:target",
+    "minecraft:sculk_sensor",
+    "minecraft:calibrated_sculk_sensor",
+    "minecraft:lightning_rod",
+    "minecraft:note_block",
+    "minecraft:dispenser",
+    "minecraft:dropper",
+    "minecraft:hopper",
+    "minecraft:lectern",
+    "minecraft:crafter",
+    "minecraft:trapped_chest"
+  ]
+}

@@ -5,14 +5,17 @@ import cn.xm1221.AnvilCraftFluid.AnvilCraftFluid.Companion.REGISTRUM
 import cn.xm1221.AnvilCraftFluid.block.AddonCauldronBlock
 import cn.xm1221.AnvilCraftFluid.block.AddonLiquidBlock
 import cn.xm1221.AnvilCraftFluid.block.ReactiveLiquidBlock
+import cn.xm1221.AnvilCraftFluid.block.RedstoneResinBlock
 import cn.xm1221.AnvilCraftFluid.fluid.AddonFluidSpecs
 import cn.xm1221.AnvilCraftFluid.fluid.FluidFamily
+import cn.xm1221.AnvilCraftFluid.fluid.FluidPairReactions
 import cn.xm1221.AnvilCraftFluid.fluid.FluidSpec
 import cn.xm1221.AnvilCraftFluid.fluid.WaterReactions
 import dev.anvilcraft.lib.v2.registrum.builders.FluidBuilder
 import dev.anvilcraft.lib.v2.registrum.providers.RegistrumBlockstateProvider
 import dev.anvilcraft.lib.v2.registrum.util.entry.BlockEntry
 import dev.anvilcraft.lib.v2.registrum.util.entry.FluidEntry
+import net.minecraft.core.Direction
 import net.minecraft.core.cauldron.CauldronInteraction
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.sounds.SoundEvents
@@ -22,10 +25,12 @@ import net.minecraft.world.ItemInteractionResult
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
+import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.state.properties.IntegerProperty
 import net.minecraft.world.level.material.Fluid
 import net.minecraft.world.level.pathfinder.PathType
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions
+import net.neoforged.neoforge.client.model.generators.BlockModelBuilder
 import net.neoforged.neoforge.client.model.generators.ConfiguredModel
 import net.neoforged.neoforge.client.model.generators.ModelFile
 import net.neoforged.neoforge.common.SoundActions
@@ -165,7 +170,7 @@ object AddonFluids {
         val flowingTexture: ResourceLocation = AnvilCraftFluid.of("block/${spec.texture}_flow")
 
         val typeFactory = FluidBuilder.FluidTypeFactory { properties, still, flowing ->
-            tintedFluidType(properties, still, flowing, spec.tint)
+            tintedFluidType(properties, still, flowing, spec.tint, spec.washResistant, spec.washResistantTags, spec.washResistantIds)
         }
 
         var builder = REGISTRUM
@@ -202,20 +207,26 @@ object AddonFluids {
         } else {
             // 用哪个方块类？**只在需要额外行为时才自己建**，其余留给 Registrum 的 defaultBlock()：
             //   · 遇水凝固（在 WaterReactions 表里）→ ReactiveLiquidBlock，且区分源/流动
+            //   · 参与"流体对流体"反应（在 FluidPairReactions 表里）→ 同上，也是 ReactiveLiquidBlock
             //   · 有接触影响（着火 / 伤害 / 冻结 / 状态效果 / 烧物品 / 重铸）→ AddonLiquidBlock
-            // 两者都不需要时保持 defaultBlock()，这样它的默认设置（含粒子贴图）仍由 Registrum 生成。
+            //   · **会导电**（spec.conductsRedstone，红石树脂胶体）→ RedstoneResinBlock
+            // 都不需要时保持 defaultBlock()，这样它的默认设置（含粒子贴图）仍由 Registrum 生成。
             //
             // ⚠️ 反应对象按 **spec.name** 查好再传进去——不要让它拿液体方块里的 fluid 反推名字，
             //    那拿到的是 `flowing_<name>`，会让所有反应失效。
             // ⚠️ 与 bucket 同理：自己调用 block() 后 defaultBlock 变 false，
             //    FluidBuilder.register() 不再自动注册它，必须自己 .register()
             val reaction = WaterReactions.reactionFor(spec.name)
-            if (reaction != null || !spec.contact.isHarmless) {
+            val pairRules = FluidPairReactions.rulesFor(spec.name)
+            if (spec.conductsRedstone || reaction != null || pairRules.isNotEmpty() || !spec.contact.isHarmless) {
                 builder.block { fluid, properties ->
-                    if (reaction != null) {
-                        ReactiveLiquidBlock(fluid, properties, reaction, spec)
-                    } else {
-                        AddonLiquidBlock(fluid, properties, spec)
+                    when {
+                        // 导电胶体必须用自己的方块类（要往状态里加 POWERED 并覆写充能相关方法）
+                        spec.conductsRedstone -> RedstoneResinBlock(fluid, properties, spec)
+                        reaction != null || pairRules.isNotEmpty() -> {
+                            ReactiveLiquidBlock(fluid, properties, reaction, pairRules, spec)
+                        }
+                        else -> AddonLiquidBlock(fluid, properties, spec)
                     }
                 }.register()
             }
@@ -230,7 +241,12 @@ object AddonFluids {
         //    否则 Registrum 会报 "Found unused register callbacks"。
         builder.bucket()
             .model { ctx, provider ->
-                provider.withExistingParent(ctx.name, AnvilCraftFluid.of("item/bucket_template"))
+                val model = provider.withExistingParent(ctx.name, AnvilCraftFluid.of("item/bucket_template"))
+                // 桶描边：颜色由 FluidSpec.bucketOutlineTint **单独指定**（口径是与液面边框一致），
+                // 有值才给模型加 layer2 白色描边图 + 物品染色；其余流体的桶样子不变。
+                if (spec.bucketOutlineTint != null) {
+                    model.texture("layer2", AnvilCraftFluid.of("item/bucket_fluid_outline"))
+                }
             }
             .register()
 
@@ -254,12 +270,13 @@ object AddonFluids {
         .loot { tables, block -> tables.dropOther(block, Items.CAULDRON) }
         .blockstate { ctx, provider ->
             // 锅模型**由 datagen 生成**（不再手写 JSON）：父级是原版 template_cauldron_full，
-            // content 面指向该族共用的灰度静止贴图，配方块颜色处理器上色。
+            // content 面指向**该流体自己的**静止贴图（spec.texture，没单独指定时就是同族共用那张），
+            // 配方块颜色处理器上色。
             // 好处：新增流体时不会漏文件（曾经手写漏了 4 个桶模型）。
             provider.models().getBuilder("${spec.name}_cauldron")
                 .parent(cauldronTemplate(provider))
                 .texture("bottom", vanillaTexture("block/cauldron_bottom"))
-                .texture("content", AnvilCraftFluid.of("block/${spec.family.textureBase}_still"))
+                .texture("content", AnvilCraftFluid.of("block/${spec.texture}_still"))
                 .texture("inside", vanillaTexture("block/cauldron_inner"))
                 .texture("particle", vanillaTexture("block/cauldron_side"))
                 .texture("side", vanillaTexture("block/cauldron_side"))
@@ -269,10 +286,88 @@ object AddonFluids {
                 AnvilCraftFluid.of("block/${spec.name}_cauldron"),
                 provider.models().existingFileHelper,
             )
-            provider.getVariantBuilder(ctx.get())
-                .forAllStates { ConfiguredModel.builder().modelFile(model).build() }
+
+            // 锅里的液面是**模型**画的（原版 template_cauldron_full 的 content 面，画在 y=15），
+            // 不是世界流体方块，所以世界那套描边（client/FluidOutlineRenderer）照不到锅里——
+            // 之前锅里的液体就是这么"没有边框"的。这里额外生成一层贴着液面的 1px 边框模型，
+            // 和锅本体一起挂到同一个方块状态上：forAllStates 每次可以返回多个模型，
+            // 等价于原版 blockstate 的 variants 数组（多个模型都画）。
+            val outlineTexture = spec.outlineTexture
+            val outlineFile = if (spec.outlined && outlineTexture != null) {
+                cauldronOutline(
+                    provider.models().getBuilder("${spec.name}_cauldron_outline"),
+                    outlineTexture,
+                )
+                ModelFile.ExistingModelFile(
+                    AnvilCraftFluid.of("block/${spec.name}_cauldron_outline"),
+                    provider.models().existingFileHelper,
+                )
+            } else {
+                null
+            }
+
+            if (outlineFile == null) {
+                provider.getVariantBuilder(ctx.get())
+                    .forAllStates { ConfiguredModel.builder().modelFile(model).build() }
+            } else {
+                // ⚠️ 这里**必须用 multipart**，不能用 variants 数组：
+                // variants 里列多个模型 = 按权重**随机挑一个**（MultiVariant → WeightedBakedModel），
+                // 不是"都画"。写成数组会让锅随机地只渲染出边框那一层（真出现过：
+                // "只有一个单独的发光环"，浮霜只是碰巧随机到了锅本体）。
+                // multipart 的多个 apply 是叠加的，两层都会画。
+                provider.getMultipartBuilder(ctx.get())
+                    .part().modelFile(model).addModel().end()
+                    .part().modelFile(outlineFile).addModel().end()
+            }
         }
         .register()
+
+    /**
+     * 给**锅里的液面**加一圈边框：观感照抄**世界液面那圈边框**——
+     * 一张贴着液面的**平面环**（只有朝上的面，侧视看不见，俯视才是那条线）。
+     *
+     * 尺寸照抄原版 `template_cauldron_full`：内腔 x/z ∈ [2,14]，液面在 y=15。
+     * 抬升量与世界的 `LIFT` 一致（0.002 格 = 0.032 单位），避免和 content 面（也在 y=15）共面闪烁；
+     * 外圈再缩进 0.02，避开与锅壁内表面共面。
+     *
+     * UV 也照世界那套取贴图**外圈 1px**（北取上边、南取下边、西取左边、东取右边）：
+     * 上游那两张 `*_metal_block_outline` 是预上色的**边框图**，取中间区域是取不到边框花纹的。
+     * 红石树脂那种整张纯白的贴图则怎么取都一样。
+     *
+     * ⚠️ 世界那圈"顶边"竖片（`FluidOutlineRenderer` 里贴液面的竖片）在这里没必要：
+     * 它在世界里贴在液体的**外沿**，锅里的外沿就是锅壁本身，画了也被挡住。
+     *
+     * ⚠️ 颜色走 `tintindex: 1`（见 `client/AddonFluidColors`），所以边框贴图照旧画灰度/纯白：
+     * 浮霜余烬是上游预上色贴图（染色返回 -1，原样显示），红石树脂是纯白贴图 + 未激活色。
+     */
+    private fun cauldronOutline(builder: BlockModelBuilder, outlineTexture: String) {
+        builder.texture("outline", outlineTexture)
+
+        // 每条 = 长方体（x1,y1,z1,x2,y2,z2）+ 它朝上面用的 UV（照世界那套取外圈 1px）
+        val boxes: List<Pair<FloatArray, FloatArray>> = listOf(
+            floatArrayOf(2.02F, SURFACE, 2.02F, 13.98F, SURFACE + LIFT, 3F) to floatArrayOf(0F, 0F, 16F, 1F),       // 北 → 上边
+            floatArrayOf(2.02F, SURFACE, 13F, 13.98F, SURFACE + LIFT, 13.98F) to floatArrayOf(0F, 15F, 16F, 16F),  // 南 → 下边
+            floatArrayOf(2.02F, SURFACE, 3F, 3F, SURFACE + LIFT, 13F) to floatArrayOf(0F, 0F, 1F, 16F),             // 西 → 左边
+            floatArrayOf(13F, SURFACE, 3F, 13.98F, SURFACE + LIFT, 13F) to floatArrayOf(15F, 0F, 16F, 16F),         // 东 → 右边
+        )
+        boxes.forEach { (box, uv) ->
+            builder.element()
+                .from(box[0], box[1], box[2])
+                .to(box[3], box[4], box[5])
+                .face(Direction.UP)
+                .texture("#outline")
+                .uvs(uv[0], uv[1], uv[2], uv[3])
+                .tintindex(1)
+                .end()
+                .end()
+        }
+    }
+
+    /** 锅内液面高度（照原版 `template_cauldron_full` 的 content 面） */
+    private const val SURFACE: Float = 15F
+
+    /** 液面环抬升量，照世界描边的 `LIFT = 0.002` 格（1 格 = 16 单位） */
+    private const val LIFT: Float = 0.032F
 
     /** 原版方块模型引用 */
     private fun cauldronTemplate(provider: RegistrumBlockstateProvider): ModelFile =
@@ -319,16 +414,49 @@ object AddonFluids {
         still: ResourceLocation,
         flowing: ResourceLocation,
         tint: Int,
-    ): FluidType = object : FluidType(properties) {
-        @Suppress("OVERRIDE_DEPRECATION", "removal")
-        override fun initializeClient(consumer: Consumer<IClientFluidTypeExtensions>) {
-            consumer.accept(object : IClientFluidTypeExtensions {
-                override fun getStillTexture(): ResourceLocation = still
+        washResistant: Set<Block>,
+        washResistantTags: Set<TagKey<Block>>,
+        washResistantIds: Set<ResourceLocation>,
+    ): FluidType {
+        val type = object : FluidType(properties) {
+            @Suppress("OVERRIDE_DEPRECATION", "removal")
+            override fun initializeClient(consumer: Consumer<IClientFluidTypeExtensions>) {
+                consumer.accept(object : IClientFluidTypeExtensions {
+                    override fun getStillTexture(): ResourceLocation = still
 
-                override fun getFlowingTexture(): ResourceLocation = flowing
+                    override fun getFlowingTexture(): ResourceLocation = flowing
 
-                override fun getTintColor(): Int = tint
-            })
+                    override fun getTintColor(): Int = tint
+                })
+            }
         }
+        // 记下"这种流体不冲哪些方块"给 mixin 用（空集不用记：绝大多数流体都没配）
+        if (washResistant.isNotEmpty() || washResistantTags.isNotEmpty() || washResistantIds.isNotEmpty()) {
+            WASH_PROOF[type] = WashProof(washResistant, washResistantTags, washResistantIds)
+        }
+        return type
     }
+
+    /**
+     * 一种流体的"冲不掉"清单：[blocks] / [tags] / [ids] 三者是"**或**"关系。
+     *
+     * 标签与注册名都留到运行时查——标签是数据包加载的，注册期解析只会拿到空集；
+     * 注册名则是为了引用没有标签、又不想编译期依赖的上游方块。
+     */
+    class WashProof(
+        val blocks: Set<Block>,
+        val tags: Set<TagKey<Block>>,
+        val ids: Set<ResourceLocation>,
+    )
+
+    /** `FluidType → 冲不掉清单`，注册时在 [tintedFluidType] 里填 */
+    private val WASH_PROOF: MutableMap<FluidType, WashProof> = HashMap()
+
+    /**
+     * 给 `mixin/FlowingFluidMixin` 用：这种流体（源/流动任一个）不该冲掉哪些方块。
+     *
+     * 没配过的流体（含其它模组与原版）返回 null → mixin 直接放行，不插手别人的流体。
+     */
+    @JvmStatic
+    fun washProofFor(fluid: Fluid): WashProof? = WASH_PROOF[fluid.fluidType]
 }

@@ -1,6 +1,7 @@
 package cn.xm1221.AnvilCraftFluid.data
 
 import cn.xm1221.AnvilCraftFluid.AnvilCraftFluid
+import cn.xm1221.AnvilCraftFluid.data.block.AddonBlockTagHandler
 import cn.xm1221.AnvilCraftFluid.data.lang.AddonLangHandler
 import cn.xm1221.AnvilCraftFluid.data.recipe.AddonRecipeHandler
 import dev.anvilcraft.lib.v2.registrum.providers.ProviderType
@@ -14,6 +15,16 @@ class AddonDatagen {
         @SubscribeEvent
         @JvmStatic
         fun gatherData(event: GatherDataEvent) {
+            // 方块标签（`anvilcraft_fluid:wash_proof/redstone` 等）走标准 NeoForge provider：
+            // 本模组的数据一律 datagen 生成，不手写 json，见 AddonBlockTagHandler 的类注释。
+            event.generator.addProvider(
+                event.includeServer(),
+                AddonBlockTagHandler(
+                    event.generator.packOutput,
+                    event.lookupProvider,
+                    event.existingFileHelper,
+                ),
+            )
         }
 
         /**

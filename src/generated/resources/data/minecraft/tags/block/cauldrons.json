@@ -19,6 +19,7 @@
     "anvilcraft_fluid:molten_uranium_cauldron",
     "anvilcraft_fluid:frost_fluid_cauldron",
     "anvilcraft_fluid:ember_fluid_cauldron",
-    "anvilcraft_fluid:cursed_gold_fluid_cauldron"
+    "anvilcraft_fluid:cursed_gold_fluid_cauldron",
+    "anvilcraft_fluid:redstone_resin_cauldron"
   ]
 }

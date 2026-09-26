@@ -48,6 +48,8 @@
   "block.anvilcraft_fluid.molten_uranium_cauldron": "Molten Uranium Cauldron",
   "block.anvilcraft_fluid.molten_zinc": "Molten Zinc",
   "block.anvilcraft_fluid.molten_zinc_cauldron": "Molten Zinc Cauldron",
+  "block.anvilcraft_fluid.redstone_resin": "Redstone Resin",
+  "block.anvilcraft_fluid.redstone_resin_cauldron": "Redstone Resin Cauldron",
   "fluid.anvilcraft_fluid.cursed_gold_fluid": "Cursed Gold Fluid",
   "fluid.anvilcraft_fluid.ember_fluid": "Ember Fluid",
   "fluid.anvilcraft_fluid.frost_fluid": "Frost Fluid",
@@ -68,6 +70,7 @@
   "fluid.anvilcraft_fluid.molten_tungsten": "Molten Tungsten",
   "fluid.anvilcraft_fluid.molten_uranium": "Molten Uranium",
   "fluid.anvilcraft_fluid.molten_zinc": "Molten Zinc",
+  "fluid.anvilcraft_fluid.redstone_resin": "Redstone Resin",
   "item.anvilcraft_fluid.cursed_gold_fluid_bucket": "Cursed Gold Fluid Bucket",
   "item.anvilcraft_fluid.ember_fluid_bucket": "Ember Fluid Bucket",
   "item.anvilcraft_fluid.frost_fluid_bucket": "Frost Fluid Bucket",
@@ -88,5 +91,6 @@
   "item.anvilcraft_fluid.molten_tungsten_bucket": "Molten Tungsten Bucket",
   "item.anvilcraft_fluid.molten_uranium_bucket": "Molten Uranium Bucket",
   "item.anvilcraft_fluid.molten_zinc_bucket": "Molten Zinc Bucket",
+  "item.anvilcraft_fluid.redstone_resin_bucket": "Redstone Resin Bucket",
   "itemGroup.anvilcraft_fluid.addon_items": "AnvilCraft: Fluid"
 }

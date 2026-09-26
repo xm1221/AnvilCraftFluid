@@ -5,6 +5,8 @@
     "anvilcraft_fluid:flowing_ember_fluid",
     "anvilcraft_fluid:ember_fluid",
     "anvilcraft_fluid:flowing_cursed_gold_fluid",
-    "anvilcraft_fluid:cursed_gold_fluid"
+    "anvilcraft_fluid:cursed_gold_fluid",
+    "anvilcraft_fluid:flowing_redstone_resin",
+    "anvilcraft_fluid:redstone_resin"
   ]
 }

@@ -29,6 +29,10 @@ neoForge {
         data {
             data()
             programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
+            // 锅里的液面边框用的是**上游 AnvilCraft 的贴图**（anvilcraft:block/*_metal_block_outline），
+            // 而 datagen 的资源校验默认只认原版 + 本模组，不加这条会直接失败：
+            // "Texture anvilcraft:block/frost_metal_block_outline does not exist in any known resource pack"
+            programArguments.addAll '--existing-mod', 'anvilcraft'
         }
 
         configureEach {

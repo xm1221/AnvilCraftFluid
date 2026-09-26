@@ -1,0 +1,14 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "anvilcraft_fluid:block/redstone_resin_cauldron"
+      }
+    },
+    {
+      "apply": {
+        "model": "anvilcraft_fluid:block/redstone_resin_cauldron_outline"
+      }
+    }
+  ]
+}

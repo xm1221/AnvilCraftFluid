@@ -1,7 +1,14 @@
 {
-  "variants": {
-    "": {
-      "model": "anvilcraft_fluid:block/frost_fluid_cauldron"
+  "multipart": [
+    {
+      "apply": {
+        "model": "anvilcraft_fluid:block/frost_fluid_cauldron"
+      }
+    },
+    {
+      "apply": {
+        "model": "anvilcraft_fluid:block/frost_fluid_cauldron_outline"
+      }
     }
-  }
+  ]
 }

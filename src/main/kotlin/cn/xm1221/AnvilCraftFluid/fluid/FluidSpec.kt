@@ -1,6 +1,12 @@
 package cn.xm1221.AnvilCraftFluid.fluid
 
+import cn.xm1221.AnvilCraftFluid.init.AddonBlockTags
+import net.minecraft.core.registries.Registries
 import net.minecraft.resources.ResourceLocation
+import net.minecraft.tags.BlockTags
+import net.minecraft.tags.TagKey
+import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.Blocks
 
 /**
  * 流体族。族决定**共用哪一套灰度贴图**，以及进哪些流体标签。
@@ -93,6 +99,99 @@ data class FluidSpec(
     val slopeFindDistance: Int = 4,
     val contact: FluidContact = FluidContact.NONE,
     val placeable: Boolean = true,
+    /**
+     * true 时给这种流体的**液面外缘**描一圈发光边框（贴图见 [outlineTexture]）。
+     *
+     * ⚠️ 这里**不再**给源方块挂整块模型了（用户口径：源方块不一定需要边框，边框只在流体边缘）。
+     * 世界里的液体方块一律保持原版渲染，边框只在流体真正露在外面的边缘由客户端现画
+     * （`client/FluidOutlineRenderer`），所以连成一片的流体只有整片的外轮廓发亮。
+     */
+    val outlined: Boolean = false,
+    /**
+     * 液面描边用的贴图 id。为 null 就不描边。
+     *
+     * **颜色由贴图自己决定**：本模组直接用上游那两张预上色的
+     * `anvilcraft:block/{frost,ember}_metal_block_outline`（浮霜近白、余烬黄），
+     * 客户端只乘白色顶点色，所以边框看着和上游金属块那一圈一模一样。
+     *
+     * 描边由客户端在 `LiquidBlockRenderer#tesselate` 末尾、
+     * 用原版算出的（含邻居平均的）角点高度现画，源/流动各档、斜面都贴得严丝合缝。
+     */
+    val outlineTexture: String? = null,
+    /**
+     * **桶描边**（`models/item/<name>_bucket.json` 的 `layer2`）的颜色，`0xAARRGGBB`。
+     *
+     * 与 [outlined] / [outlineTexture] **互相独立、单独指定**：为 null 时桶不加描边层，
+     * 有值才加。口径是"**和这种流体的液面边框颜色一致**"——
+     * 两边不是同一个数据源（边框色来自贴图，这里是一个常量），改贴图时要跟着改这里。
+     */
+    val bucketOutlineTint: Int? = null,
+    /**
+     * **桶内液体那一层**（`models/item/<name>_bucket.json` 的 `layer1`）的颜色，`0xAARRGGBB`。
+     *
+     * 那一层贴图 `item/bucket_fluid` 是**所有流体公用的灰度图**，所以它必须要一个颜色来乘。
+     * 为 null（默认）时用 [tint]；世界液面贴图**自带成品色**、不想被任何颜色覆盖的流体
+     * （如红石树脂胶体），就把 [tint] 写成白色 `0xFFFFFFFF`，颜色单独写在这里。
+     */
+    val bucketFluidTint: Int? = null,
+    /**
+     * **按状态切换的液面描边颜色**：未激活 / 已激活（都是 `0xAARRGGBB`）。
+     *
+     * 只有"会被点亮的"流体用得上（现在是红石树脂胶体）：它的 [outlineTexture]
+     * 是一张**纯白**贴图（`anvilcraft_fluid:block/fluid_outline`），
+     * 白色贴图乘上这两个颜色，就得到暗红 / 亮红两态。
+     * 浮霜、余烬这两个字段都留 null，颜色照旧由上游那张预上色贴图自带。
+     *
+     * ⚠️ 声明了 [outlineTintOn] 的流体，描边的**自发光也跟着状态走**：
+     * 未激活用该格的正常光照（放在暗处就是暗的），只有激活才全亮——
+     * 这样"激活才亮、不激活为暗"在夜里也读得出来。
+     */
+    val outlineTintOff: Int? = null,
+    /** 已激活时的液面描边颜色，语义见 [outlineTintOff] */
+    val outlineTintOn: Int? = null,
+    /**
+     * **不会被这种流体冲掉的方块清单**（"某些流体不冲掉某些方块"）。
+     *
+     * 流体蔓延时，原版 `FlowingFluid#canSpreadTo` 会先问 `FluidState#canBeReplacedWith`：
+     * 返回 false 时流体**根本不会流进那一格**，方块既不会被替换、也不会掉物品
+     * （掉落发生在更后面的 `beforeDestroyingBlock` 里）。清单就是在这个闸门上拦的，
+     * 见 `mixin/FlowingFluidMixin`。
+     *
+     * 三个入口，彼此是"或"关系：[washResistant] 直接写方块、[washResistantTags] 用原版/上游现成标签、
+     * [washResistantIds] 用注册名（跨模组又不想加编译依赖时）。例：
+     * `washResistantTags = setOf(BlockTags.RAILS)`、
+     * `washResistantIds = setOf(ResourceLocation.fromNamespaceAndPath("anvilcraft", "redstone_wire"))`
+     *
+     * ⚠️ **别把流体方块写进来**：流体冲掉流体是"流体对流体"反应
+     * （浮霜源 + 余烬源 → 黑石 那类）的入口；那条路已经由 mixin 主动放过。
+     * ⚠️ 拦下来 = 流体流不进那一格，会从旁边绕开／积在周围——通常正是想要的效果。
+     */
+    val washResistant: Set<Block> = emptySet(),
+    /**
+     * **不会被这种流体冲掉的方块标签**（[washResistant] 的标签版，两者是"**或**"关系）。
+     *
+     * 用标签的好处：① 原版/上游已经分好组的直接复用（`minecraft:buttons`、`minecraft:pressure_plates`、
+     * `minecraft:rails`、`anvilcraft:sliding_rails` 等）；② 数据包能自己往里加东西。
+     *
+     * ⚠️ 标签**只能在运行时判定**（`BlockState#is(TagKey)`）：标签是数据包加载出来的，
+     * 注册期去解析只会拿到空集。所以 mixin 里是拿标签现查，不是提前展开成方块表。
+     */
+    val washResistantTags: Set<TagKey<Block>> = emptySet(),
+    /**
+     * **按注册名指定的"冲不掉"清单**（与 [washResistant]、[washResistantTags] 都是"或"关系）。
+     *
+     * 存在的理由：上游模组的方块可能没有现成标签，而我们又不想为了引用它而在编译期依赖它
+     * （如 `anvilcraft:redstone_wire`）。注册名在运行时查，找不到也不报错。
+     */
+    val washResistantIds: Set<ResourceLocation> = emptySet(),
+    /**
+     * true 时这种流体的世界液体方块是**红石导体**
+     * （方块类见 `block/RedstoneResinBlock`）：被某一侧红石激活后，向**除那一侧以外**的
+     * 五个方向充能 15 级；而那一侧的信号一旦消失，它自己也就熄掉（见该类注释里的方向口径）。
+     *
+     * 源方块与流动方块本来就是同一个方块类的不同档位，所以"流动的、源方块"两者都算数。
+     */
+    val conductsRedstone: Boolean = false,
 )
 
 /**
@@ -250,6 +349,10 @@ object AddonFluidSpecs {
         "frost_fluid", argb(0xFFBFE6F5), FluidFamily.SPECIAL,
         lightLevel = 6, temperature = 300, viscosity = 2000,
         contact = FluidContact(freezing = true),
+        outlined = true,
+        outlineTexture = "anvilcraft:block/frost_metal_block_outline",
+        // 桶描边颜色：单独指定，取值对应上面那圈边框——量自 frost_metal_block_outline（近白）
+        bucketOutlineTint = argb(0xFFDAE1E7),
     )
 
     /**
@@ -258,9 +361,19 @@ object AddonFluidSpecs {
      * 泡在里面会**着火**并持续受到大量伤害，**普通物品会被烧毁**（像岩浆）。
      * 但火焰免疫的物品（余烬金属装备等）既不受伤也不会被烧毁，其中带重铸组件的还会被修好——
      * 这正是上游让重铸装备在岩浆里活下来的同一套机制，见 [FluidContact] 的类注释。
+     *
+     * 贴图是**自己的**一对（占位图已就位，直接覆盖那两张 png 就行）：
+     * `block/ember_fluid_still.png`（16×128 = 8 帧 16×16）与
+     * `block/ember_fluid_flow.png`（32×256 = 8 帧 32×32），各配一个 `*.png.mcmeta`。
+     * 因为是**成品色**贴图（用户自己画），[tint] 留白（白色 = 不染色），
+     * 世界液面与锅内液面都原样显示画好的样子；桶内液体那一层的颜色见 [bucketFluidTint]。
      */
     val EMBER_FLUID = FluidSpec(
-        "ember_fluid", argb(0xFFFF7A2A), FluidFamily.SPECIAL,
+        // 白色 = 不染色：贴图是用户画的成品色
+        "ember_fluid", argb(0xFFFFFFFF), FluidFamily.SPECIAL,
+        // 桶内液体那一层是公用灰度图，沿用原来的颜色（与熔融钨一致，用户口径）
+        bucketFluidTint = argb(0xFF2A2422),
+        texture = "ember_fluid",
         lightLevel = 15, temperature = 2000, viscosity = 4000,
         contact = FluidContact(
             igniteSeconds = 15,
@@ -269,6 +382,50 @@ object AddonFluidSpecs {
             damageType = AddonDamageTypes.EMBER,
             reforgePerTick = 1,
         ),
+        outlined = true,
+        outlineTexture = "anvilcraft:block/ember_metal_block_outline",
+        // 桶描边颜色：单独指定，取值对应上面那圈边框——量自 ember_metal_block_outline（黄）
+        bucketOutlineTint = argb(0xFFEAB302),
+    )
+
+    /**
+     * 红石树脂胶体：红石粉与树脂调成的胶体，**能传导红石信号**。
+     *
+     * 被某一侧的红石激活时，它向**除那一侧以外**的五个方向充能 15 级
+     * （红石元件与可充能方块都吃得到），也会把挨着的同类胶体一起点亮，
+     * 于是一整片胶体连成一条电路；**那一侧的信号一消失它就熄掉**，
+     * 而且不会回灌给供电的那一侧（所以相邻两格不会互相供电锁死）。
+     * 实现见 `block/RedstoneResinBlock`。
+     *
+     * 边框随状态变色：激活是亮红，未激活是暗红而且**不发光**（见 [outlineTintOff] / [outlineTintOn]）。
+     *
+     * 贴图是**自己的**一对（占位图已就位，直接覆盖那两张 png 就行）：
+     * `block/redstone_resin_still.png`（16×128 = 8 帧 16×16）与
+     * `block/redstone_resin_flow.png`（32×256 = 8 帧 32×32），各配一个 `*.png.mcmeta`。
+     *
+     * ⚠️ 这两张是**成品色**贴图（用户自己画），所以 [tint] 留**白色**：
+     * 白色 = 不染色，世界液面与锅内液面都原样显示画好的样子，不被任何颜色覆盖。
+     * 桶内液体那一层是公用灰度图，颜色另见 [bucketFluidTint]。
+     */
+    val REDSTONE_RESIN = FluidSpec(
+        "redstone_resin", argb(0xFFFFFFFF), FluidFamily.SPECIAL,
+        // 桶内液体那一层（公用灰度图 item/bucket_fluid，用户指定 #d9ad56）
+        bucketFluidTint = argb(0xFFD9AD56),
+        texture = "redstone_resin",
+        lightLevel = 0, temperature = 300, viscosity = 3000,
+        // ⚠️ 红石树脂**不冲掉红石元件**（MC + AnvilCraft）。
+        // 清单是 datagen 生成的标签：`anvilcraft_fluid:wash_proof/redstone`，
+        // 内容见 `data/block/AddonBlockTagHandler`（改那里，不要手写 json）。
+        // 别的流体想要自己的清单，就照抄一个 `wash_proof/xxx` 标签再在这里引用。
+        washResistantTags = setOf(AddonBlockTags.WASH_PROOF_REDSTONE),
+        conductsRedstone = true,
+        outlined = true,
+        // 边框贴图是**纯白**的 anvilcraft_fluid:block/fluid_outline，颜色全靠下面两个 tint
+        outlineTexture = "anvilcraft_fluid:block/fluid_outline",
+        outlineTintOff = argb(0xFF6E1216),
+        outlineTintOn = argb(0xFFFF3B30),
+        // 桶没法通电，取"激活"那一档的亮红，物品栏里看得清楚
+        bucketOutlineTint = argb(0xFFFF3B30),
     )
 
     /**
@@ -288,6 +445,7 @@ object AddonFluidSpecs {
         FROST_FLUID,
         EMBER_FLUID,
         CURSED_GOLD_FLUID,
+        REDSTONE_RESIN,
     )
 
     /** 本期注册的全部流体 */

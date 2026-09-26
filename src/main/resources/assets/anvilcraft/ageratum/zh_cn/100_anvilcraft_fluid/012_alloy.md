@@ -1,6 +1,6 @@
 ---
 navigation:
-  title: "皇家钢与磁铁块"
+  title: "基于流体的配方"
   icon: "anvilcraft_fluid:molten_royal_steel_bucket"
 items:
   - anvilcraft_fluid:molten_royal_steel_bucket

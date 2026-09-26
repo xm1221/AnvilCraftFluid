@@ -8,7 +8,6 @@ items:
 
 # 远古残骸
 
-用**时移**把下界合金"还原"成远古残骸：
 
 <recipe id="anvilcraft_fluid:time_warp/ancient_debris_from_netherite_ingot"/>
 <recipe id="anvilcraft_fluid:time_warp/ancient_debris_from_molten_tungsten"/>

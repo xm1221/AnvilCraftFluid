@@ -48,6 +48,8 @@
   "block.anvilcraft_fluid.molten_uranium_cauldron": "uoɹpꞁnɐƆ ɯnᴉuɐɹ∩ uǝʇꞁoW",
   "block.anvilcraft_fluid.molten_zinc": "ɔuᴉZ uǝʇꞁoW",
   "block.anvilcraft_fluid.molten_zinc_cauldron": "uoɹpꞁnɐƆ ɔuᴉZ uǝʇꞁoW",
+  "block.anvilcraft_fluid.redstone_resin": "uᴉsǝᴚ ǝuoʇspǝᴚ",
+  "block.anvilcraft_fluid.redstone_resin_cauldron": "uoɹpꞁnɐƆ uᴉsǝᴚ ǝuoʇspǝᴚ",
   "fluid.anvilcraft_fluid.cursed_gold_fluid": "pᴉnꞁℲ pꞁo⅁ pǝsɹnƆ",
   "fluid.anvilcraft_fluid.ember_fluid": "pᴉnꞁℲ ɹǝqɯƎ",
   "fluid.anvilcraft_fluid.frost_fluid": "pᴉnꞁℲ ʇsoɹℲ",
@@ -68,6 +70,7 @@
   "fluid.anvilcraft_fluid.molten_tungsten": "uǝʇsᵷun⟘ uǝʇꞁoW",
   "fluid.anvilcraft_fluid.molten_uranium": "ɯnᴉuɐɹ∩ uǝʇꞁoW",
   "fluid.anvilcraft_fluid.molten_zinc": "ɔuᴉZ uǝʇꞁoW",
+  "fluid.anvilcraft_fluid.redstone_resin": "uᴉsǝᴚ ǝuoʇspǝᴚ",
   "item.anvilcraft_fluid.cursed_gold_fluid_bucket": "ʇǝʞɔnᗺ pᴉnꞁℲ pꞁo⅁ pǝsɹnƆ",
   "item.anvilcraft_fluid.ember_fluid_bucket": "ʇǝʞɔnᗺ pᴉnꞁℲ ɹǝqɯƎ",
   "item.anvilcraft_fluid.frost_fluid_bucket": "ʇǝʞɔnᗺ pᴉnꞁℲ ʇsoɹℲ",
@@ -88,5 +91,6 @@
   "item.anvilcraft_fluid.molten_tungsten_bucket": "ʇǝʞɔnᗺ uǝʇsᵷun⟘ uǝʇꞁoW",
   "item.anvilcraft_fluid.molten_uranium_bucket": "ʇǝʞɔnᗺ ɯnᴉuɐɹ∩ uǝʇꞁoW",
   "item.anvilcraft_fluid.molten_zinc_bucket": "ʇǝʞɔnᗺ ɔuᴉZ uǝʇꞁoW",
+  "item.anvilcraft_fluid.redstone_resin_bucket": "ʇǝʞɔnᗺ uᴉsǝᴚ ǝuoʇspǝᴚ",
   "itemGroup.anvilcraft_fluid.addon_items": "pᴉnꞁℲ :ʇɟɐɹƆꞁᴉʌuⱯ"
 }

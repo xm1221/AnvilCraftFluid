@@ -1,3 +1,6 @@
 {
-  "parent": "anvilcraft_fluid:item/bucket_template"
+  "parent": "anvilcraft_fluid:item/bucket_template",
+  "textures": {
+    "layer2": "anvilcraft_fluid:item/bucket_fluid_outline"
+  }
 }

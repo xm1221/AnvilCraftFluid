@@ -43,4 +43,7 @@ open class AddonLiquidBlock(
         super.entityInside(state, level, pos, entity)
         FluidContactApplier.apply(spec, level, pos, entity)
     }
+
+    // 不覆写 getRenderShape()：液体方块保持原版的 RenderShape.INVISIBLE，
+    // 液面完全交给流体渲染器；那一圈发光边框由 client/FluidOutlineRenderer 在流体渲染时现画。
 }

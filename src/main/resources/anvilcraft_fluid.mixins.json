@@ -4,8 +4,10 @@
   "package": "cn.xm1221.AnvilCraftFluid.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "FlowingFluidMixin"
   ],
   "client": [
+    "LiquidBlockRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -20,6 +20,7 @@
   "block.anvilcraft_fluid.molten_uranium": "熔融铀",
   "block.anvilcraft_fluid.frost_fluid": "浮霜流体",
   "block.anvilcraft_fluid.ember_fluid": "余烬流体",
+  "block.anvilcraft_fluid.redstone_resin": "红石树脂胶体",
   "block.anvilcraft_fluid.cursed_gold_fluid": "熔融诅咒金",
 
   "item.anvilcraft_fluid.molten_ruby_bucket": "熔融红宝石桶",
@@ -41,6 +42,7 @@
   "item.anvilcraft_fluid.molten_uranium_bucket": "熔融铀桶",
   "item.anvilcraft_fluid.frost_fluid_bucket": "浮霜流体桶",
   "item.anvilcraft_fluid.ember_fluid_bucket": "余烬流体桶",
+  "item.anvilcraft_fluid.redstone_resin_bucket": "红石树脂胶体桶",
   "item.anvilcraft_fluid.cursed_gold_fluid_bucket": "熔融诅咒金桶",
 
   "fluid.anvilcraft_fluid.molten_ruby": "熔融红宝石",
@@ -62,6 +64,7 @@
   "fluid.anvilcraft_fluid.molten_uranium": "熔融铀",
   "fluid.anvilcraft_fluid.frost_fluid": "浮霜流体",
   "fluid.anvilcraft_fluid.ember_fluid": "余烬流体",
+  "fluid.anvilcraft_fluid.redstone_resin": "红石树脂胶体",
   "fluid.anvilcraft_fluid.cursed_gold_fluid": "熔融诅咒金",
 
   "block.anvilcraft_fluid.molten_ruby_cauldron": "装有熔融红宝石的炼药锅",
@@ -83,6 +86,7 @@
   "block.anvilcraft_fluid.molten_uranium_cauldron": "装有熔融铀的炼药锅",
   "block.anvilcraft_fluid.frost_fluid_cauldron": "装有浮霜流体的炼药锅",
   "block.anvilcraft_fluid.ember_fluid_cauldron": "装有余烬流体的炼药锅",
+  "block.anvilcraft_fluid.redstone_resin_cauldron": "装有红石树脂胶体的炼药锅",
   "block.anvilcraft_fluid.cursed_gold_fluid_cauldron": "装有熔融诅咒金的炼药锅",
 
   "tooltip.anvilcraft_fluid.molten_ruby": "熔融的红宝石，蕴含火焰的力量",
@@ -93,6 +97,7 @@
   "tooltip.anvilcraft_fluid.molten_uranium": "熔融的铀，泛着不祥的绿光",
   "tooltip.anvilcraft_fluid.frost_fluid": "冰冻魔力化为的神奇流体，似乎具有奇妙的性质",
   "tooltip.anvilcraft_fluid.ember_fluid": "余烬魔力凝成的流体，滚烫而不肯熄灭",
+  "tooltip.anvilcraft_fluid.redstone_resin": "红石粉-树脂混合物，可以传递红石信号",
   "tooltip.anvilcraft_fluid.cursed_gold_fluid": "熔融的诅咒金，散发着不详的气息",
 
   "death.attack.anvilcraft_fluid.ember": "%1$s 被余烬流体烧成了灰烬",
