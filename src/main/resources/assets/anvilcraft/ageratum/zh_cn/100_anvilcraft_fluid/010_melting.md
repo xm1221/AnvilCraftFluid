@@ -11,7 +11,8 @@ items:
 
 在<ref item="anvilcraft:large_cauldron"/>里用**高温熔炼**把原料化成流体：
 
-- 1 个金属块 或 1 个宝石块 → 1000mB 对应的熔融流体
+- 1 个金属块或9个宝石 → 1000mB 对应的熔融流体
+- 另外：
 - 9 个<ref item="minecraft:quartz"/> → 1000mB 熔融石英
 - 9 个<ref item="minecraft:amethyst_shard"/> → 1000mB 熔融紫水晶
 

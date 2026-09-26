@@ -3,7 +3,8 @@
   "fluid": [],
   "ingredients": [
     {
-      "items": "anvilcraft:sapphire_block"
+      "count": 9,
+      "items": "anvilcraft:sapphire"
     }
   ],
   "transform": {

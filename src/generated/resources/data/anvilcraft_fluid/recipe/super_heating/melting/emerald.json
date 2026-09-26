@@ -3,7 +3,8 @@
   "fluid": [],
   "ingredients": [
     {
-      "items": "minecraft:emerald_block"
+      "count": 9,
+      "items": "minecraft:emerald"
     }
   ],
   "transform": {

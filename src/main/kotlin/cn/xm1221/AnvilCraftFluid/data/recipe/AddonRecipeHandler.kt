@@ -317,9 +317,6 @@ object AddonRecipeHandler {
             "molten_gold" to Blocks.GOLD_BLOCK,
             "molten_copper" to Blocks.COPPER_BLOCK,
             "molten_tungsten" to ModBlocks.TUNGSTEN_BLOCK.get(),
-            // 熔融皇家钢：与冷却那条互为逆过程（此前被误删，2026-09-25 随冷却一起加回）。
-            // 这条要求**锅里没有流体**（生成的 JSON 是 `"fluid": []`，即空锅才成立），
-            // 所以跟"锅里要有细雪 + 熔融皇家钢"的浮霜配方、跟冷却配方天然互斥，抢不了。
             "molten_royal_steel" to ModBlocks.ROYAL_STEEL_BLOCK.get(),
             "molten_lead" to ModBlocks.LEAD_BLOCK.get(),
             "molten_silver" to ModBlocks.SILVER_BLOCK.get(),
@@ -327,19 +324,28 @@ object AddonRecipeHandler {
             "molten_zinc" to ModBlocks.ZINC_BLOCK.get(),
             "molten_titanium" to ModBlocks.TITANIUM_BLOCK.get(),
             "molten_uranium" to ModBlocks.URANIUM_BLOCK.get(),
+
+            /*宝石块的配方冲突，删除
             "molten_ruby" to ModBlocks.RUBY_BLOCK.get(),
             "molten_sapphire" to ModBlocks.SAPPHIRE_BLOCK.get(),
             "molten_topaz" to ModBlocks.TOPAZ_BLOCK.get(),
-            "molten_emerald" to Blocks.EMERALD_BLOCK,
+            "molten_emerald" to Blocks.EMERALD_BLOCK,*/
+
             "cursed_gold_fluid" to ModBlocks.CURSED_GOLD_BLOCK.get(),
         )
         for ((fluidName, block) in blockInputs) {
             meltingRecipe(provider, fluidName, block, 1)
         }
 
-        // 石英 / 紫水晶：九个物品
+        // ：九个物品
         meltingRecipe(provider, "molten_quartz", Items.QUARTZ, 9)
         meltingRecipe(provider, "molten_amethyst", Items.AMETHYST_SHARD, 9)
+        meltingRecipe(provider,"molten_ruby",ModItems.RUBY, 9)
+        meltingRecipe(provider,"molten_sapphire", ModItems.SAPPHIRE,9)
+        meltingRecipe(provider,"molten_topaz", ModItems.TOPAZ,9)
+        meltingRecipe(provider,"molten_emerald", Items.EMERALD,9)
+
+        //TODO:添加九个锭到熔融金属的配方，由各种熔融宝石到熔融宝石的多流体混合配方,正统的用熔融宝石合成熔融皇家钢的配方
     }
 
     /** 单条熔融配方：`count` 个 [input] → 1000 mB [fluidName] */
