@@ -47,8 +47,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * ## 壳（不做切角）
  *
- * 每个面都是**完整 quad**：要么整个提交，要么整个不提交。侧面只在 oX && !凹角
- * 时提交。边界对齐方块边界，缩 INSET。
+ * 每个面都是**完整 quad**：要么整个提交，要么整个不提交。侧面只在 oX 时提交
+ * （不再有"凹角"判定：任何一处露在外面的壳面本身就是勾线的一部分）。边界对齐方块边界，缩 INSET。
  *
  * ## 缩量规则
  *
@@ -109,14 +109,6 @@ public final class FluidOutlineRenderer {
                     .apply(ResourceLocation.withDefaultNamespace("missingno"));
         }
         return Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(still);
-    }
-
-    private static boolean isConcaveCorner(BlockAndTintGetter level, BlockPos pos, Direction d) {
-        BlockPos mid = pos.relative(d);
-        // 中间那格必须是真的空气才算凹角。
-        // "流体 方块 流体"这种排布：中间是实心方块时这一侧的壳面照样能看见，剔掉就漏了。
-        if (!level.getBlockState(mid).isAir()) return false;
-        return !level.getFluidState(mid.relative(d)).isEmpty();
     }
 
     private static float cornerHeight(
@@ -386,10 +378,15 @@ public final class FluidOutlineRenderer {
         boolean insetE = oE && !bareE;
         boolean insetW = oW && !bareW;
 
-        boolean shellN = oN && !isConcaveCorner(level, pos, Direction.NORTH);
-        boolean shellS = oS && !isConcaveCorner(level, pos, Direction.SOUTH);
-        boolean shellE = oE && !isConcaveCorner(level, pos, Direction.EAST);
-        boolean shellW = oW && !isConcaveCorner(level, pos, Direction.WEST);
+        // 壳面只由"这一侧露不露出来"（oX）决定，别无其它条件。
+        // 原先这里还有一条"凹角"判定（这一侧是空气、再往外一格有流体就整面不画），已删除：
+        // 反转绕序后壳面正面朝内，north 面正是**从南边看时**构成轮廓的那张底幕，
+        // 删掉它会让这一格的勾线整块消失；而且那条判定不判流体种类与高度，
+        // 隔着水/岩浆/别的附属流体也会误删。
+        boolean shellN = oN;
+        boolean shellS = oS;
+        boolean shellE = oE;
+        boolean shellW = oW;
 
         // 四个角的液面高度：直接从**原版自己画出来的顶点**里读（每个角取该角最高的顶点）。
         // 这就是"液面由原生方法渲染"：高度是原版的产物，不是我们算的。
@@ -589,13 +586,14 @@ public final class FluidOutlineRenderer {
     /**
      * 邻居那格在与我相邻的这一侧会不会也画内壳（= 它也是"带壳流体"）。
      * 会画 → 两面在格子边界上对接，无缝；不会画 → 我们这面退回内缩，免得和它的表面重合。
+     *
+     * 只看"对面是不是我们自己的描边流体"：它朝我这一侧必然要画壳面，
+     * 因为中间隔的就是我这格流体（曾经的凹角判在这里恒为假，已随之上删除）。
      */
     private static boolean shelledNeighbour(BlockAndTintGetter level, BlockPos pos, Direction d) {
         BlockPos np = pos.relative(d);
         FluidSpec spec = specOf(level.getBlockState(np).getFluidState().getType());
-        if (spec == null || !spec.getOutlined() || spec.getOutlineTexture() == null) return false;
-        // 它朝我这一侧也得真的画壳面（中间隔的那格是我这格、有流体，不会算凹角）
-        return !isConcaveCorner(level, np, d.getOpposite());
+        return spec != null && spec.getOutlined() && spec.getOutlineTexture() != null;
     }
 
     /** 从原版顶点里读这格四个角的液面高度（相对格底）：每个角取落在该角上最高的那个顶点 */

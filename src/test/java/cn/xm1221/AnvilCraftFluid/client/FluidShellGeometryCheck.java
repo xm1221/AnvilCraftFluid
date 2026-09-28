@@ -13,13 +13,15 @@ public final class FluidShellGeometryCheck {
     public static void main(String[] args) throws Exception {
         checkStackJoins();
         checkCapturedSurface();
+        checkConcaveCheckRemoved();
         checkReversal(new float[][] {{0,.4f,0},{0,.8f,1},{1,.4f,1},{1,.8f,0}});
         checkReversal(new float[][] {{0,.8f,0},{0,.4f,1},{1,.8f,1},{1,.4f,0}});
         checkReversal(new float[][] {{0,1,0},{1,1,0},{1,0,0},{0,0,0}});
         checkReversal(new float[][] {{0,1,1},{0,0,1},{1,0,1},{1,1,1}});
         checkReversal(new float[][] {{0,1,0},{0,0,0},{0,0,1},{0,1,1}});
         checkReversal(new float[][] {{1,1,1},{1,0,1},{1,0,0},{1,1,0}});
-        System.out.println("Fluid shell geometry: stack joins, 6 winding/diagonal fixtures and capture provenance passed");
+        System.out.println("Fluid shell geometry: stack joins, 6 winding/diagonal fixtures, "
+                + "capture provenance and concave-check removal passed");
     }
 
     private static void checkCapturedSurface() throws Exception {
@@ -43,6 +45,17 @@ public final class FluidShellGeometryCheck {
         float[] side = (float[]) heights.invoke(null, capture, 0f,0f,0f);
         require(Arrays.equals(side, new float[]{.4f,.7f,-1,-1}), "Side upper-edge provenance lost");
         capture.reset();
+    }
+
+    /**
+     * 结构回归锁：壳面不能再被"凹角"（两格之外的流体）删掉。
+     * 反转绕序后 north 壳面正是从南边看时的底幕，删它等于抹掉那一格的勾线。
+     * 这条只锁结构，不能替代实机画面确认。
+     */
+    private static void checkConcaveCheckRemoved() {
+        for (Method m : FluidOutlineRenderer.class.getDeclaredMethods()) {
+            require(!m.getName().equals("isConcaveCorner"), "Concave-corner shell suppression was reintroduced");
+        }
     }
 
     private static void checkStackJoins() {
