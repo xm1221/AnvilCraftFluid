@@ -602,10 +602,19 @@ public final class FluidOutlineRenderer {
     private static float[] captureCornerHeights(FluidVertexCapture cap, float x, float y, float z) {
         float[] h = { -1.0F, -1.0F, -1.0F, -1.0F };   // NW, NE, SW, SE
         int n = cap.vertices();
-        for (int i = 0; i < n; i++) {
-            int corner = (cap.get(i, 0) - x > 0.5F ? 1 : 0) + (cap.get(i, 2) - z > 0.5F ? 2 : 0);
-            float ly = cap.get(i, 1) - y;
-            if (ly > h[corner]) h[corner] = ly;
+        for (int face = 0; face + 3 < n; face += 4) {
+            // A culled top may leave only the bottom quad. It is not surface-height
+            // evidence. Normals cannot identify it: the fluid renderer writes +Y on sides too.
+            float maxY = Float.NEGATIVE_INFINITY;
+            for (int v = face; v < face + 4; v++) maxY = Math.max(maxY, cap.get(v, 1) - y);
+            if (maxY <= 0.0011F) continue;
+            for (int i = face; i < face + 4; i++) {
+                float ly = cap.get(i, 1) - y;
+                if (ly <= 0.0011F) continue; // lower endpoints are not liquid-surface corners
+                int corner = (cap.get(i, 0) - x > 0.5F ? 1 : 0)
+                        + (cap.get(i, 2) - z > 0.5F ? 2 : 0);
+                if (ly > h[corner]) h[corner] = ly;
+            }
         }
         return h;
     }

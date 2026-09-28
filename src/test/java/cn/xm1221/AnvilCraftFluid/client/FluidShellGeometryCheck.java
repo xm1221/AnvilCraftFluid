@@ -12,13 +12,37 @@ import java.util.List;
 public final class FluidShellGeometryCheck {
     public static void main(String[] args) throws Exception {
         checkStackJoins();
+        checkCapturedSurface();
         checkReversal(new float[][] {{0,.4f,0},{0,.8f,1},{1,.4f,1},{1,.8f,0}});
         checkReversal(new float[][] {{0,.8f,0},{0,.4f,1},{1,.8f,1},{1,.4f,0}});
         checkReversal(new float[][] {{0,1,0},{1,1,0},{1,0,0},{0,0,0}});
         checkReversal(new float[][] {{0,1,1},{0,0,1},{1,0,1},{1,1,1}});
         checkReversal(new float[][] {{0,1,0},{0,0,0},{0,0,1},{0,1,1}});
         checkReversal(new float[][] {{1,1,1},{1,0,1},{1,0,0},{1,1,0}});
-        System.out.println("Fluid shell geometry: stack joins and 6 winding/diagonal fixtures passed");
+        System.out.println("Fluid shell geometry: stack joins, 6 winding/diagonal fixtures and capture provenance passed");
+    }
+
+    private static void checkCapturedSurface() throws Exception {
+        Method heights = FluidOutlineRenderer.class.getDeclaredMethod("captureCornerHeights",
+                FluidVertexCapture.class, float.class, float.class, float.class);
+        heights.setAccessible(true);
+        FluidVertexCapture capture = FluidVertexCapture.get();
+        capture.reset();
+        for (float[] v : new float[][] {{0,.001f,0},{1,.001f,0},{1,.001f,1},{0,.001f,1}})
+            capture.addVertex(v[0],v[1],v[2]);
+        float[] bottom = (float[]) heights.invoke(null, capture, 0f,0f,0f);
+        for (float h : bottom) require(h < 0, "Bottom face incorrectly accepted as liquid surface");
+        capture.reset();
+        for (float[] v : new float[][] {{0,.4f,0},{0,.8f,1},{1,.6f,1},{1,.7f,0}})
+            capture.addVertex(v[0],v[1],v[2]);
+        float[] top = (float[]) heights.invoke(null, capture, 0f,0f,0f);
+        require(Arrays.equals(top, new float[]{.4f,.7f,.8f,.6f}), "Captured top heights changed");
+        capture.reset();
+        for (float[] v : new float[][] {{0,.4f,.001f},{1,.7f,.001f},{1,.001f,.001f},{0,.001f,.001f}})
+            capture.addVertex(v[0],v[1],v[2]);
+        float[] side = (float[]) heights.invoke(null, capture, 0f,0f,0f);
+        require(Arrays.equals(side, new float[]{.4f,.7f,-1,-1}), "Side upper-edge provenance lost");
+        capture.reset();
     }
 
     private static void checkStackJoins() {
