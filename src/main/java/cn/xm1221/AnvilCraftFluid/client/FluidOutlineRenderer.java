@@ -505,10 +505,12 @@ public final class FluidOutlineRenderer {
         float bz0 = oN ? (shelledNeighbour(level, pos, Direction.NORTH) ? z : z + ins) : z;
         float bz1 = oS ? (shelledNeighbour(level, pos, Direction.SOUTH) ? z + 1 : z + 1 - ins) : z + 1;
         float bBot = oD ? y + ins : y;
-        float bTopNW = oU ? y + hNW - ins : y + 1.0F - ins;
-        float bTopNE = oU ? y + hNE - ins : y + 1.0F - ins;
-        float bTopSW = oU ? y + hSW - ins : y + 1.0F - ins;
-        float bTopSE = oU ? y + hSE - ins : y + 1.0F - ins;
+        // Internal vertical joins must reach the next cell's bottom exactly; only an
+        // exposed liquid surface needs the inset. Otherwise every stacked cell leaves a slit.
+        float bTopNW = shellTopHeight(y, hNW, oU);
+        float bTopNE = shellTopHeight(y, hNE, oU);
+        float bTopSW = shellTopHeight(y, hSW, oU);
+        float bTopSE = shellTopHeight(y, hSE, oU);
 
         // 内壳的颜色和自发光**可以跟着"有没有被点亮"走**（红石树脂胶体就是这么用的）：
         //   · 声明了 outlineTintOn 的流体 → 点亮 = 亮色 + 全亮；未点亮 = outlineTintOff + 这一格的正常光照
@@ -696,6 +698,10 @@ public final class FluidOutlineRenderer {
         sideQuad(e, tex, x0, z1, x1, z1, t01, t11, yBot, 0, 0, 1);
     }
 
+    static float shellTopHeight(float baseY, float capturedHeight, boolean exposed) {
+        return exposed ? baseY + capturedHeight - INSET : baseY + 1.0F;
+    }
+
     private static final class Emitter {
         private final VertexConsumer buffer;
         private final int red, green, blue, alpha;
@@ -720,10 +726,12 @@ public final class FluidOutlineRenderer {
                 float nx, float ny, float nz
         ) {
             if (invert) {
+                // Keep the original 0–2 diagonal when reversing the winding. Starting at 3
+                // instead switches to 1–3, changing the surface for non-coplanar fluid tops.
+                vertex(x0, y0, z0, u0, v0, -nx, -ny, -nz);
                 vertex(x3, y3, z3, u3, v3, -nx, -ny, -nz);
                 vertex(x2, y2, z2, u2, v2, -nx, -ny, -nz);
                 vertex(x1, y1, z1, u1, v1, -nx, -ny, -nz);
-                vertex(x0, y0, z0, u0, v0, -nx, -ny, -nz);
             } else {
                 vertex(x0, y0, z0, u0, v0, nx, ny, nz);
                 vertex(x1, y1, z1, u1, v1, nx, ny, nz);

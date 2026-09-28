@@ -57,3 +57,18 @@ repositories {
 dependencies {
     testImplementation 'org.jetbrains.kotlin:kotlin-test'
 }
+
+// ModDev configures Minecraft on main only; these headless tests exercise its vertex interface.
+sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath
+
+// Geometry regressions exercise the real emitter without starting a client or requiring JUnit.
+tasks.register('checkFluidShellGeometry', JavaExec) {
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'cn.xm1221.AnvilCraftFluid.client.FluidShellGeometryCheck'
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+tasks.named('check') { dependsOn tasks.named('checkFluidShellGeometry') }
