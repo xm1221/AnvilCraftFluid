@@ -43,7 +43,7 @@ items:
 让世界燃烧吧！
 </tip>
 
-# 红石-树脂混合物
+# 红石-树脂胶体
 
 在<ref item="anvilcraft:large_cauldron"/>里：**1 <ref item="anvilcraft:resin_block"/> + 3 <ref item="minecraft:redstone"/> → 1000mB <ref item="anvilcraft_fluid:redstone_resin_bucket"/>**。它有什么用见[功能性流体](100_anvilcraft_fluid/002_functional.md)。
 
